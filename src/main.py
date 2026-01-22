@@ -90,6 +90,8 @@ def main(args):
     data_dir = os.path.join(os.getcwd(), "data_train", timestamp)
     os.makedirs(data_dir, exist_ok=True)
 
+    print("Save current exp to: ", data_dir)
+
     # initialize CSV file
     rewards_csv_path = os.path.join(data_dir, "rewards.csv")
     with open(rewards_csv_path, mode='w', newline='') as csv_file:

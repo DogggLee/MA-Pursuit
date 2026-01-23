@@ -1,5 +1,27 @@
 import math
 import numpy as np
+import yaml
+from easydict import EasyDict as edict
+
+def load_config(path):
+    data = yaml.safe_load(open(path, "r"))
+    return edict(data)
+
+def calc_dim(config):
+    hunter_dim = config["Hunter"]["max_comm_num"] * 3 + 3 + 3 + 3 + 1 + config["Hunter"]["lidar_beams"]
+    target_dim = config["Target"]["max_hunter_num"] * 3 + 3 + 3 + config["Target"]["lidar_beams"]
+    return hunter_dim, target_dim
+
+def generate_exp_dirname(dump_root, config):
+    ss = [config.Base.exp_name]
+
+    ss.append(config.Train.num_episodes)
+    ss.append(config.Train.max_steps)
+    ss.append(f"lr-{config.Train.lr}")
+
+    path = ','.join(ss)
+
+    return path
 
 def vector_length(v):
     return math.hypot(v[0], v[1])

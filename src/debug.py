@@ -37,7 +37,7 @@ def main(args):
                       action_dim=args.action_dim,
                       visualize_lasers=args.visualizelaser)
 
-    env.render()
+    # env.render()
 
     # Initialize agents for hunters and targets
     hunters = [MATD3Agent(obs_dim=args.h_actor_dim,
@@ -97,7 +97,7 @@ def main(args):
     print("Save current exp to: ", data_dir)
 
     # initialize CSV file
-    rewards_csv_path = os.path.join(data_dir, "rewards.csv")
+    rewards_csv_path = data_dir / "rewards.csv"
     with open(rewards_csv_path, mode='w', newline='') as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(["episode", "total_reward_hunters", "total_reward_targets"])
@@ -193,7 +193,8 @@ def main(args):
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             save_dir = os.path.join(os.getcwd(), "model",
                                     f"{timestamp}_{save_reason}")
-            os.makedirs(save_dir, exist_ok=True)
+            save_dir = data_dir / "model"
+            save_dir.makedirs_p()
 
             for i, hunter in enumerate(hunters):
                 hunter.save_model(save_dir, agent_id=i, agent_type='hunter')

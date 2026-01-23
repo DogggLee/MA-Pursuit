@@ -37,16 +37,17 @@ class MultiTarEnv:
         self.action_dim = action_dim # dimension of each agent's action
 
         self.time_step = 0.5 # update time step
-        self.v_max = 0.05
-        self.a_max = 0.01
+        self.v_max = 0.01
+        self.a_max = 0.005
         self.num_lasers = 16 # beams of lasers
-        self.L_sensor = 0.2 # max length of sensor
-        self.escape_distance = 0.05 # escape distance threshold for target
+        self.L_sensor = 0.05 # max length of sensor
+        self.escape_distance = 0.02 # escape distance threshold for target
         self.distance_threshold = 0.01 # distance threshold for collision
         self.max_escape_angle = 30 # max escape angle for target (degree)
 
         ## Instancing hunters and targets, obstacles.
         # set of obstacles
+        ## 随机生成障碍物
         self.obstacles = [Obstacle() for _ in range(self.num_obstacle)]
         # set of hunters
         self.hunters = [Hunter(self.length, self.L_sensor,self.num_lasers, self.time_step, self.obstacles) for _ in range(self.num_hunters)]

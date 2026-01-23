@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import yaml
+import datetime
 from easydict import EasyDict as edict
 
 def load_config(path):
@@ -12,16 +13,18 @@ def calc_dim(config):
     target_dim = config["Target"]["max_hunter_num"] * 3 + 3 + 3 + config["Target"]["lidar_beams"]
     return hunter_dim, target_dim
 
-def generate_exp_dirname(dump_root, config):
+def generate_exp_dirname(config):
     ss = [config.Base.exp_name]
 
     ss.append(config.Train.num_episodes)
     ss.append(config.Train.max_steps)
     ss.append(f"lr-{config.Train.lr}")
 
-    path = ','.join(ss)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    return path
+    dirname = ','.join(ss)
+
+    return f"{timestamp}_{dirname}"
 
 def vector_length(v):
     return math.hypot(v[0], v[1])

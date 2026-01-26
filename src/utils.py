@@ -11,6 +11,13 @@ def load_config(path):
 def calc_dim(config):
     hunter_dim = config["Hunter"]["max_comm_num"] * 3 + 3 + 3 + 3 + 1 + config["Hunter"]["lidar_beams"]
     target_dim = config["Target"]["max_hunter_num"] * 3 + 3 + 3 + config["Target"]["lidar_beams"]
+
+    print(f"Hunter dim: \tD_h = N_comm_h * 3 + D_pos + D_vel + T_vel + D_dist + N_beams")
+    print(f"Hunter dim: \t{hunter_dim} = {config["Hunter"]["max_comm_num"]} * 3 + 3 + 3 + 3 + 1 + {config["Hunter"]["lidar_beams"]}")
+
+    print(f"Target dim: \tD_t = N_near_h * 3 + D_pos + D_vel + T_vel + N_beams")
+    print(f"Target dim: \t{target_dim} = {config["Target"]["max_hunter_num"]} * 3 + 3 + {config["Hunter"]["lidar_beams"]}")
+
     return hunter_dim, target_dim
 
 def generate_exp_dirname(config):

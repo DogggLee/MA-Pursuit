@@ -14,14 +14,15 @@ class Lidar:
         self.distances = np.full(num_rays, max_detect_d) # initial lasers' lengths
         self.isInObs = False # whether the agent is inside the obstacle
 
-    def _calculate_intersections(self,position,length):
+    def _calculate_intersections(self,position,map_size):
         """
         calculate intersections and update laser's length
         """
         self.isInObs = False
         x0, y0, z0 = position
 
-        if x0 < 0 or x0 > length or y0 < 0 or y0 > length:
+        # 在地图范围外，视作处于障碍物内部
+        if x0 < 0 or x0 > map_size or y0 < 0 or y0 > map_size:
             self.distances = np.zeros(self.num_rays)
             self.isInObs = True
             return
@@ -58,7 +59,7 @@ class Lidar:
                             if distance < self.distances[i]:
                                 self.distances[i] = distance
                 
-                t_boundary = self._calculate_boundary_intersection(x0, y0, dx, dy, length)
+                t_boundary = self._calculate_boundary_intersection(x0, y0, dx, dy, map_size)
                 if t_boundary is not None and t_boundary < self.distances[i]:
                     self.distances[i] = t_boundary
 

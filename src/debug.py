@@ -49,7 +49,7 @@ def main(args):
                           device=device,
                           iforthogonalize=args.iforthogonalize,
                           noise_clip=args.noise_clip,
-                          a_max=args.a_max,
+                          max_acc=args.a_max,
                           if_lr_decay=args.iflrdecay,
                           total_episodes=args.num_episodes) for _ in range(env.num_hunters)]
 
@@ -62,7 +62,7 @@ def main(args):
                           device=device,
                           iforthogonalize=args.iforthogonalize,
                           noise_clip=args.noise_clip,
-                          a_max=args.a_max,
+                          max_acc=args.a_max,
                           if_lr_decay=args.iflrdecay,
                           total_episodes=args.num_episodes) for _ in range(env.num_targets)]
 

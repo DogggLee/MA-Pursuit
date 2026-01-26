@@ -47,7 +47,7 @@ def test_agents(args):
                           device=device,
                           iforthogonalize=args.iforthogonalize,
                           noise_clip=args.noise_clip,
-                          a_max=args.a_max) for _ in range(env.num_hunters)]
+                          max_acc=args.a_max) for _ in range(env.num_hunters)]
 
     targets = [MATD3Agent(obs_dim=args.t_actor_dim,
                           action_dim=args.action_dim,
@@ -58,7 +58,7 @@ def test_agents(args):
                           device=device,
                           iforthogonalize=args.iforthogonalize,
                           noise_clip=args.noise_clip,
-                          a_max=args.a_max) for _ in range(env.num_targets)]
+                          max_acc=args.a_max) for _ in range(env.num_targets)]
 
     # Load pre-trained models
     model_dir = args.model_dir 

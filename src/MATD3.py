@@ -62,7 +62,7 @@ class Critic(nn.Module):
 
 class MATD3Agent:
     def __init__(self, obs_dim, action_dim, lr, gamma, tau, noise_std, device,
-                 iforthogonalize=False, noise_clip=0.5, a_max=0.04, if_lr_decay=False, total_episodes=500):
+                 iforthogonalize=False, noise_clip=0.5, max_acc=0.04, if_lr_decay=False, total_episodes=500):
         self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.gamma = gamma
@@ -70,9 +70,9 @@ class MATD3Agent:
         self.noise_std = noise_std
         self.device = device
         self.noise_clip = noise_clip
-        self.a_max = a_max
+        self.a_max = max_acc
 
-        self.actor = Actor(obs_dim, action_dim, iforthogonalize, a_max).to(device)
+        self.actor = Actor(obs_dim, action_dim, iforthogonalize, max_acc).to(device)
         self.actor_target = copy.deepcopy(self.actor)
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=lr)
 

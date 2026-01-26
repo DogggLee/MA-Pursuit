@@ -66,13 +66,13 @@ class MAPursuitEnv:
             multi_obs_info.append(obstacle._return_obs_info())
 
     def gen_env(self, config):
-        num_obs = np.random.randint(self.num_obstacle[0], self.num_obstacle[1]+1)
-        num_hunter = np.random.randint(self.num_hunters[0], self.num_hunters[1]+1)
-        num_target = np.random.randint(self.num_targets[0], self.num_targets[1]+1)
+        self.num_obs = np.random.randint(self.num_obstacle[0], self.num_obstacle[1]+1)
+        self.num_hunter = np.random.randint(self.num_hunters[0], self.num_hunters[1]+1)
+        self.num_target = np.random.randint(self.num_targets[0], self.num_targets[1]+1)
 
         # set of obstacles
         self.obstacles = []
-        for _ in range(num_obs):
+        for _ in range(self.num_obs):
             obs = Obstacle(config.Env.map_size, config.Env.obstacle_margin,
                            config.Env.obstacle_radius_range, config.Env.obstacle_height_range,
                            speed=config.Env.obstacle_speed)
@@ -80,7 +80,7 @@ class MAPursuitEnv:
 
         # set of hunters
         self.hunters = []
-        for _ in range(num_hunter):   
+        for _ in range(self.num_hunter):   
             target_lidar = Lidar(config.Hunter.max_lidar_dist, config.Hunter.lidar_beams, self.obstacles)
             target = Hunter(target_lidar, config.Env.map_size, 
                             config.Env.hunter_margin, config.Env.hunter_init_height,
@@ -89,7 +89,7 @@ class MAPursuitEnv:
 
         # set of targets
         self.targets = []
-        for _ in range(num_target):   
+        for _ in range(self.num_target):   
             target_lidar = Lidar(config.Target.max_lidar_dist, config.Target.lidar_beams, self.obstacles)
             target = Hunter(target_lidar, config.Env.map_size, 
                             config.Env.target_margin, config.Env.target_init_height,
@@ -97,7 +97,7 @@ class MAPursuitEnv:
             self.targets.append(target)
 
     def re_gen(self):
-        self._gen_env(self.config)
+        self.gen_env(self.config)
 
 
     def reset(self):

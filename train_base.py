@@ -109,13 +109,14 @@ def train_split(args):
     
     update_counter = 0
     score_threshold = config.Train.ckp_score_threshold
-    for episode in range(1, config.Train.num_episodes + 1):
+    for episode in range(config.Train.num_episodes):
         h_obs, t_obs = env.reset()
-        episode_rewards_hunters = np.zeros(env.num_hunters)
-        episode_rewards_targets = np.zeros(env.num_targets)
+        episode_rewards_hunters = np.zeros(env.num_hunter)
+        episode_rewards_targets = np.zeros(env.num_target)
         done = False
         current_step = 1
 
+        # Play 直至episode终止
         while (not done) and (current_step <= config.Train.max_steps):
             actions_hunters = []
             actions_targets = []
@@ -129,6 +130,81 @@ def train_split(args):
             for i, target in enumerate(targets):
                 action = target.select_action(t_obs[i])
                 actions_targets.append(action)
+            
+            # concatenate all actions
+            actions = actions_hunters + actions_targets
+            # execute all actions & interact with env
+            h_next_obs, t_next_obs, rewards, dones = env.step(actions)
+            
+            if args.render:
+                env.render()
+            current_step += 1
+
+            rewards_hunters = rewards[:env.num_hunter]
+            rewards_targets = rewards[env.num_hunter:]
+            dones_hunters = dones[:env.num_hunter]
+            dones_targets = dones[env.num_hunter:]
+
+            # store transitions in Buffer
+            for i in range(env.num_hunter):
+                hunters_buffer.store_transition(h_obs[i], actions_hunters[i], rewards_hunters[i], h_next_obs[i], dones_hunters[i])
+
+            for i in range(env.num_target):
+                targets_buffer.store_transition(t_obs[i], actions_targets[i], rewards_targets[i], t_next_obs[i], dones_targets[i])
+
+            episode_rewards_hunters += rewards_hunters
+            episode_rewards_targets += rewards_targets
+
+            h_obs = h_next_obs
+            t_obs = t_next_obs
+
+            done = all(dones)
+
+            update_counter += 1
+            if update_counter % config.Train.update_freq == 0:
+                if hunters_buffer.size() >= config.Train.min_buffer_size:
+                    for _ in range(config.Train.update_iterations):
+                        batch = hunters_buffer.sample(config.Train.batch_size)
+                        for hunter in hunters:
+                            hunter.update(batch)
+                if targets_buffer.size() >= config.Train.min_buffer_size:
+                    for _ in range(config.Train.update_iterations):
+                        batch = targets_buffer.sample(config.Train.batch_size)
+                        for target in targets:
+                            target.update(batch)
+
+        total_reward_hunters = episode_rewards_hunters.sum()
+        total_reward_targets = episode_rewards_targets.sum()
+        print(f"Episode {episode}/{args.num_episodes}, "
+              f"Total Reward Hunters: {total_reward_hunters:.2f}, "
+              f"Total Reward Targets: {total_reward_targets:.2f}")
+
+        with open(rewards_csv_path, mode='a', newline='') as csv_file:
+            writer = csv.writer(csv_file)
+            writer.writerow([episode, total_reward_hunters, total_reward_targets])
+
+        # save model
+        should_save = False
+        save_reason = ""
+        if episode % config.Train.ckp_save_interval == 0 and episode > 0:
+            should_save = True
+            save_reason = f"ckp_{config.Train.ckp_save_interval}"
+        if total_reward_hunters > score_threshold:
+            score_threshold = total_reward_hunters
+            should_save = True
+            save_reason = f"score_{total_reward_hunters:.0f}"
+        
+        if should_save:
+            save_dir = exp_model_dir / f"{save_reason}"
+
+            for i, hunter in enumerate(hunters):
+                hunter.save_model(save_dir, agent_id=i, agent_type='hunter')
+
+            for i, target in enumerate(targets):
+                target.save_model(save_dir, agent_id=i, agent_type='target')
+
+            print(f"Models saved at episode {episode} in {save_dir}")
+
 
 if __name__ == '__main__':
     args = parser.parse_args()

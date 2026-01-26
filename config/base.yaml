@@ -13,6 +13,8 @@ Train:
   noise_std: 0.005
   noise_clip: 0.01
 
+  lrdelay: false
+
   buffer_size: 10000
   min_buffer_size: 1024
 
@@ -20,10 +22,13 @@ Train:
   update_iterations: 20
 
   ckp_save_interval: 10
-  ckp_score_threshold: 500
+  ckp_score_threshold: 300
 
 Model:
+  hunter_lrdelay: false
   hunter_orthogonalize: false
+
+  target_lrdelay: false
   target_orthogonalize: false
 
 Reward: 
@@ -34,15 +39,21 @@ Reward:
 
 Env:
   # 任务参数
-  env_length: 300       # m
+  map_size: 300       # m
   num_obstacle: [2, 10]
   num_hunters: [3, 6]
   num_targets: [1, 3]
 
   # 随机生成参数
-  obstacle_margin: 0.1
-  hunter_margin: 0.2
-  target_margin: 0.2
+  obstacle_margin: 0.1  # [0 ~ 0.5)
+  hunter_margin: 0.2    # [0 ~ 0.5)
+  target_margin: 0.2    # [0 ~ 0.5)
+
+  obstacle_radius_range: [5, 20]
+  obstacle_height_range: [3, 30]
+  obstacle_speed: 0.0
+  hunter_init_height: 10
+  targte_init_height: 5
 
   collision_dist: 10  # m
   escape_dist: 30

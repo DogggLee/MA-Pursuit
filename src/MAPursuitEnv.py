@@ -25,41 +25,29 @@ def set_global_seeds(seed):
 
 class MAPursuitEnv:
     def __init__(self,
-                 map_size,
+                 config,
                  h_actor_dim,
                  t_actor_dim,
-                 action_dim,
-                 num_obstacle,
-                 num_hunters,
-                 num_targets,
                  visualize_lasers=False):
-        self.length = map_size # length of boundary
+        self.map_size = config.Env.map_size # length of boundary
 
-        self.num_obstacle = num_obstacle # number of obstacles
-        self.num_hunters = num_hunters # number of hunters
-        self.num_targets = num_targets # number of targets
+        self.num_obstacle = config.Env.num_obstacle # number of obstacles
+        self.num_hunters = config.Env.num_hunters # number of hunters
+        self.num_targets = config.Env.num_targets # number of targets
 
         self.h_actor_dim = h_actor_dim # each hunter's observation dimension
         self.t_actor_dim = t_actor_dim # each target's observation dimension
-        self.action_dim = action_dim # dimension of each agent's action
 
-        self.time_step = 0.5 # update time step
-        self.v_max = 0.01
-        self.a_max = 0.005
-        self.num_lasers = 16 # beams of lasers
-        self.L_sensor = 0.05 # max length of sensor
-        self.escape_distance = 0.02 # escape distance threshold for target
-        self.distance_threshold = 0.01 # distance threshold for collision
-        self.max_escape_angle = 30 # max escape angle for target (degree)
+        self.time_step = config.Env.time_step # update time step
+        
+        self.escape_distance = config.Env.escape_dist # escape distance threshold for target
+        self.max_escape_angle = config.Env.escape_angle # max escape angle for target (degree)
 
+        self.distance_threshold = config.Env.collision_dist # distance threshold for collision
+        
         ## Instancing hunters and targets, obstacles.
-        # set of obstacles
-        ## 随机生成障碍物
-        self.obstacles = [Obstacle() for _ in range(self.num_obstacle)]
-        # set of hunters
-        self.hunters = [Hunter(self.length, self.L_sensor,self.num_lasers, self.time_step, self.obstacles) for _ in range(self.num_hunters)]
-        # set of targets
-        self.targets = [Target(self.length, self.L_sensor,self.num_lasers, self.time_step, self.obstacles) for _ in range(self.num_targets)]
+        self.config = config
+        self.gen_env(config)
 
         # Control whether to visualize laser scans & plot relevant
         self.visualize_lasers = visualize_lasers
@@ -67,15 +55,50 @@ class MAPursuitEnv:
         self.ax = self.fig.add_subplot(111,projection='3d')
 
         # reward relevant
-        self.capture_reward = 2.0        # roundup success reward
-        self.chase_reward_coeff = 0.8    # chase reward coeff
-        self.escape_reward_coeff = 0.4   # escape reward coeff
-        self.safe_penalty_coeff = 0.7    # safe penalty coeff
+        self.capture_reward = config.Reward.capture_reward_w        # roundup success reward
+        self.chase_reward_coeff = config.Reward.chase_reward_w    # chase reward coeff
+        self.escape_reward_coeff = config.Reward.escape_reward_w   # escape reward coeff
+        self.safe_penalty_coeff = config.Reward.safe_penalty_w    # safe penalty coeff
     
     def _collect_obs_info(self):
         multi_obs_info = []
         for obstacle in self.obstacles:
             multi_obs_info.append(obstacle._return_obs_info())
+
+    def gen_env(self, config):
+        num_obs = np.random.randint(self.num_obstacle[0], self.num_obstacle[1]+1)
+        num_hunter = np.random.randint(self.num_hunters[0], self.num_hunters[1]+1)
+        num_target = np.random.randint(self.num_targets[0], self.num_targets[1]+1)
+
+        # set of obstacles
+        self.obstacles = []
+        for _ in range(num_obs):
+            obs = Obstacle(config.Env.map_size, config.Env.obstacle_margin,
+                           config.Env.obstacle_radius_range, config.Env.obstacle_height_range,
+                           speed=config.Env.obstacle_speed)
+            self.obstacles.append(obs)
+
+        # set of hunters
+        self.hunters = []
+        for _ in range(num_hunter):   
+            target_lidar = Lidar(config.Hunter.max_lidar_dist, config.Hunter.lidar_beams, self.obstacles)
+            target = Hunter(target_lidar, config.Env.map_size, 
+                            config.Env.hunter_margin, config.Env.hunter_init_height,
+                            config.Hunter.max_vel, config.Hunter.max_acc, config.Env.time_step)
+            self.hunters.append(target)
+
+        # set of targets
+        self.targets = []
+        for _ in range(num_target):   
+            target_lidar = Lidar(config.Target.max_lidar_dist, config.Target.lidar_beams, self.obstacles)
+            target = Hunter(target_lidar, config.Env.map_size, 
+                            config.Env.target_margin, config.Env.target_init_height,
+                            config.Target.max_vel, config.Target.max_acc, config.Env.time_step)
+            self.targets.append(target)
+
+    def re_gen(self):
+        self._gen_env(self.config)
+
 
     def reset(self):
         '''
@@ -85,18 +108,9 @@ class MAPursuitEnv:
             t_obs (list of np.array): Observations for all targets.
         '''
         for hunter in self.hunters:
-            hunter.position = np.random.uniform(low=0.50, high=0.75, size=(3,))  # TODO!: initial spawn scope
-            hunter.position[-1] = 0.10  # initial height
-            hunter.velocity = np.zeros(3)
-            hunter.history_pos = []
-            hunter.lasers = hunter.lidar.scan(hunter.position, self.length)
-
+            hunter.reset()
         for target in self.targets:
-            target.position = np.random.uniform(low=1.50, high=1.75, size=(3,))  # TODO!: initial spawn scope
-            target.position[-1] = 0.10  # initial height
-            target.velocity = np.zeros(3)
-            target.history_pos = []
-            target.lasers = target.lidar.scan(target.position, self.length)
+            target.reset()
 
         # Assign initial targets to hunters
         self._assign_targets_to_hunters()
@@ -120,22 +134,24 @@ class MAPursuitEnv:
         """
         # Apply actions to hunters
         for i, hunter in enumerate(self.hunters):
-            hunter.move(actions[i], self.v_max)
+            hunter.move(actions[i])
         
         # Apply actions to targets
         for i, target in enumerate(self.targets):
-            target.move(actions[self.num_hunters + i], self.v_max) # Assume "action" set is combination of hunetrs' & targets'
+            target.move(actions[self.num_hunters + i]) # Assume "action" set is combination of hunetrs' & targets'
 
         # Update lasers after movement
         for hunter in self.hunters:
-            hunter.lasers = hunter.lidar.scan(hunter.position, self.length)
+            # hunter.lasers = hunter.lidar.scan(hunter.position, self.map_size)
+            hunter.update_lidar()
         for target in self.targets:
-            target.lasers = target.lidar.scan(target.position, self.length)
+            # target.lasers = target.lidar.scan(target.position, self.map_size)
+            target.update_lidar()
 
         # Optionally: Boundary blocking (when train agents, 
         # to allow agents traverse the boundary may get worse performance)
         for agent in self.hunters + self.targets:
-            agent.position[:2] = np.clip(agent.position[:2], 0, self.length)
+            agent.position[:2] = np.clip(agent.position[:2], 0, self.map_size)
 
         # # Assign targets to hunters
         # self._assign_targets_to_hunters()
@@ -238,11 +254,11 @@ class MAPursuitEnv:
 
             # Concatenate all observation components
             obs = np.concatenate([
-                nearest_hunters.flatten()/self.length,                   # 2 * 3 = 6
-                hunter.position/self.length,                             # 3
+                nearest_hunters.flatten()/self.map_size,                   # 2 * 3 = 6
+                hunter.position/self.map_size,                             # 3
                 velocity/self.v_max,                                     # 3
-                target_pos/self.length,                                  # 3
-                np.array([distance_to_target])/(np.sqrt(2)*self.length), # 1
+                target_pos/self.map_size,                                  # 3
+                np.array([distance_to_target])/(np.sqrt(2)*self.map_size), # 1
                 laser_data/self.L_sensor                                 # num_lasers
             ]).astype(np.float32)
 
@@ -268,9 +284,9 @@ class MAPursuitEnv:
 
             # Concatenate all observation components
             obs = np.concatenate([
-                own_pos/self.length,                    # 3
+                own_pos/self.map_size,                    # 3
                 own_vel/self.v_max,                     # 3
-                nearest_hunters.flatten()/self.length,  # 3 * 3 = 9
+                nearest_hunters.flatten()/self.map_size,  # 3 * 3 = 9
                 laser_data/self.L_sensor                # num_lasers
             ]).astype(np.float32)
 
@@ -408,13 +424,13 @@ class MAPursuitEnv:
         Visualize the environment.
         """
         self.ax.clear()
-        self.ax.set_xlim(0, self.length)
-        self.ax.set_ylim(0, self.length)
-        self.ax.set_zlim(0, self.length/4)
+        self.ax.set_xlim(0, self.map_size)
+        self.ax.set_ylim(0, self.map_size)
+        self.ax.set_zlim(0, self.map_size/4)
         self.ax.set_title("Environment Visualization")
 
         # Draw boundaries
-        self.ax.plot([0, self.length, self.length, 0, 0], [0, 0, self.length, self.length, 0], [0, 0, 0, 0, 0], color='black', linewidth=2)
+        self.ax.plot([0, self.map_size, self.map_size, 0, 0], [0, 0, self.map_size, self.map_size, 0], [0, 0, 0, 0, 0], color='black', linewidth=2)
         # Draw obstacles (cylinders)
         for obstacle in self.obstacles:
             cx, cy, cz, r, h = obstacle._return_obs_info()
@@ -455,21 +471,73 @@ class MAPursuitEnv:
 
         ax.plot_surface(x_vals, y_vals, z_vals, color='black', alpha=0.5)
 
+class Obstacle:
+    def __init__(self, map_size, margin, 
+                 radius_range, height_range, 
+                 speed=0):
+        self.map_size = map_size
+        self.valid_area = [margin * map_size, (1 - margin) * map_size]
+        
+        self.speed = speed
+        self.radius_range = radius_range
+        self.height_range = height_range
+
+        self.reset()
+    
+    def reset(self):
+        self.position = np.random.uniform(low=self.valid_area[0], 
+                                          high=self.valid_area[1], 
+                                          size=(3,))  # TODO: initial spawn scope
+        
+        self.position[-1] = 0 # firstly let z = 0
+        angle = np.random.uniform(0, 2 * np.pi)
+        self.velocity = np.array([self.speed * np.cos(angle), self.speed * np.sin(angle)])
+        self.radius = np.random.uniform(*self.radius_range)
+        self.height = np.random.uniform(*self.height_range)
+    
+    def move(self):
+        #TODO
+        pass
+
+    def _return_obs_info(self):
+        x,y,z = self.position
+        r = self.radius
+        h = self.height
+        return (x,y,z,r,h)
+
 class AgentBase:
-    def __init__(self, boundary_length, max_distance=0.2, num_rays=16, time_step=0.5, obstacles=None):
-        self.boundary_length = boundary_length
-        self.position = np.random.uniform(low=1.25, high=1.5, size=(3,))  # TODO: initial spawn scope
-        self.position[-1] = 0.10  # initial height
-        self.velocity = np.zeros(3)  # initial velocity
+    def __init__(self, lidar: Lidar, 
+                 map_size, margin, init_height,
+                 max_vel, max_acc,
+                 time_step=0.5):
+        self.map_size = map_size
+        self.valid_area = [margin * map_size, (1 - margin) * map_size]
+        self.init_height = init_height
+
+        self.max_vel = max_vel
+        self.max_acc = max_acc
+        
         self.time_step = time_step  # update time step
 
-        self.lidar = Lidar(max_distance, num_rays, obstacles)
-        self.lasers = self.lidar.scan(self.position, self.boundary_length)
+        self.lidar = lidar
+        self.reset()
+        
+    def reset(self):
+        self.position = np.random.uniform(low=self.valid_area[0], 
+                                          high=self.valid_area[1], 
+                                          size=(3,))  # TODO: initial spawn scope
+        
+        self.position[-1] = self.init_height  # initial height
+        self.velocity = np.zeros(3)  # initial velocity
+
+        self.update_lidar()
         self.lidar.distances = self.lasers
         self.history_pos = []  # to store trajectory
 
     # update state
-    def move(self, action, v_max=0.1):
+    def move(self, action, v_max=None):
+        v_max = self.max_vel if v_max is None else v_max
+
         ax, ay = action
         if self.lidar.isInObs:
             self.velocity = np.zeros(3)
@@ -477,11 +545,31 @@ class AgentBase:
             self.velocity[0] += self.time_step * ax
             self.velocity[1] += self.time_step * ay
             velocity_norm = (self.velocity[0]**2 + self.velocity[1]**2)**0.5
-            if velocity_norm > v_max:
-                scale_factor = v_max / velocity_norm
+            if velocity_norm > self.max_vel:
+                scale_factor = self.max_vel / velocity_norm
                 self.velocity[0] *= scale_factor
                 self.velocity[1] *= scale_factor
 
         self.position += self.time_step * self.velocity 
-        self.lasers = self.lidar.scan(self.position, self.boundary_length)  
+        self.update_lidar()
         self.history_pos.append(self.position.copy())
+    
+    def update_lidar(self):
+        self.lasers = self.lidar.scan(self.position, self.map_size)
+
+class Hunter(AgentBase):
+    def __init__(self, lidar: Lidar, 
+                 map_size, margin, init_height,
+                 max_vel, max_acc,
+                 time_step=0.5):
+        super().__init__(lidar, map_size, margin, init_height, max_vel, max_acc, time_step)
+
+        self.role = {'0':'chaser', '1':'predator'}
+
+class Target(AgentBase):
+    def __init__(self, lidar: Lidar, 
+                 map_size, margin, init_height,
+                 max_vel, max_acc,
+                 time_step=0.5):
+        super().__init__(lidar, map_size, margin, init_height, max_vel, max_acc, time_step)
+

@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import torch as T
-import utils
-from Lidar import Lidar
+from . import utils
+from .Lidar import Lidar
 
 '''
     class MultiTarEnv: is a world created with UAVs (multi-target&hunter) and obstacles in a limited square area.
@@ -138,7 +138,7 @@ class MAPursuitEnv:
         
         # Apply actions to targets
         for i, target in enumerate(self.targets):
-            target.move(actions[self.num_hunters + i]) # Assume "action" set is combination of hunetrs' & targets'
+            target.move(actions[self.num_hunter + i]) # Assume "action" set is combination of hunetrs' & targets'
 
         # Update lasers after movement
         for hunter in self.hunters:
@@ -166,8 +166,8 @@ class MAPursuitEnv:
 
     # TODO: introduce a density-based assignment method
     def _assign_targets_to_hunters(self):
-        num_hunters = self.num_hunters
-        num_targets = self.num_targets
+        num_hunters = self.num_hunter
+        num_targets = self.num_target
         targets = self.targets
         
         hunter_target_distances = []
@@ -256,10 +256,10 @@ class MAPursuitEnv:
             obs = np.concatenate([
                 nearest_hunters.flatten()/self.map_size,                   # 2 * 3 = 6
                 hunter.position/self.map_size,                             # 3
-                velocity/self.v_max,                                     # 3
+                velocity/hunter.max_vel,                                     # 3
                 target_pos/self.map_size,                                  # 3
                 np.array([distance_to_target])/(np.sqrt(2)*self.map_size), # 1
-                laser_data/self.L_sensor                                 # num_lasers
+                laser_data/hunter.lidar.max_detect_d                                # num_lasers
             ]).astype(np.float32)
 
             h_obs.append(obs)
@@ -285,9 +285,9 @@ class MAPursuitEnv:
             # Concatenate all observation components
             obs = np.concatenate([
                 own_pos/self.map_size,                    # 3
-                own_vel/self.v_max,                     # 3
+                own_vel/target.max_vel,                     # 3
                 nearest_hunters.flatten()/self.map_size,  # 3 * 3 = 9
-                laser_data/self.L_sensor                # num_lasers
+                laser_data/target.lidar.max_detect_d               # num_lasers
             ]).astype(np.float32)
 
             t_obs.append(obs)
@@ -301,8 +301,8 @@ class MAPursuitEnv:
             rewards (list of float): Rewards for all agents (hunters followed by targets).
             dones (list of bool): Done flags for all agents.
         """
-        rewards = [0.0] * (self.num_hunters + self.num_targets)
-        dones = [False] * (self.num_hunters + self.num_targets)
+        rewards = [0.0] * (self.num_hunter + self.num_target)
+        dones = [False] * (self.num_hunter + self.num_target)
 
         # Map each target to its assigned hunters
         target_hunter_groups = {}
@@ -328,18 +328,18 @@ class MAPursuitEnv:
                 rewards[hunter_index] += self.chase_reward_coeff * chase_reward
 
             multi_hunters_pos = [h.position for h in hunters]
-            if utils.isRounded(tuple(target.position[:2]), [tuple(row[:2]) for row in multi_hunters_pos], self.L_sensor, self.max_escape_angle):
+            if utils.isRounded(tuple(target.position[:2]), [tuple(row[:2]) for row in multi_hunters_pos], hunter.lidar.max_detect_d, self.max_escape_angle):
                 for hunter in hunters:
                     hunter_index = self.hunters.index(hunter)
                     rewards[hunter_index] += self.capture_reward
                 target_index = self.targets.index(target)
-                dones[self.num_hunters + target_index] = True  # to mark target as done
+                dones[self.num_hunter + target_index] = True  # to mark target as done
 
         # Reward for targets
         for target in self.targets:
             target_index = self.targets.index(target)
-            if dones[self.num_hunters + target_index]:
-                rewards[self.num_hunters + target_index] += 0  # No additional reward if captured
+            if dones[self.num_hunter + target_index]:
+                rewards[self.num_hunter + target_index] += 0  # No additional reward if captured
                 continue
 
             hunters = target_hunter_groups[target]
@@ -353,12 +353,12 @@ class MAPursuitEnv:
                 escape_reward = 0.1
             else:
                 escape_reward = -0.1
-            rewards[self.num_hunters + target_index] += self.escape_reward_coeff * escape_reward
+            rewards[self.num_hunter + target_index] += self.escape_reward_coeff * escape_reward
 
         # reward for safety (u-u)
         # between hunters
-        for i in range(self.num_hunters):
-            for j in range(i+1, self.num_hunters):
+        for i in range(self.num_hunter):
+            for j in range(i+1, self.num_hunter):
                 distance = np.linalg.norm(self.hunters[i].position[:2] - self.hunters[j].position[:2])
                 if distance < self.distance_threshold:
                     penalty = self.safe_penalty_coeff * (self.distance_threshold - distance)
@@ -371,25 +371,25 @@ class MAPursuitEnv:
                 distance = np.linalg.norm(hunter.position[:2] - target.position[:2])
                 if distance < self.distance_threshold:
                     rewards[self.hunters.index(hunter)] -= self.safe_penalty_coeff * (self.distance_threshold - distance)
-                    rewards[self.num_hunters + self.targets.index(target)] -= self.safe_penalty_coeff * (self.distance_threshold - distance)
+                    rewards[self.num_hunter + self.targets.index(target)] -= self.safe_penalty_coeff * (self.distance_threshold - distance)
         
         # between targets
-        for i in range(self.num_targets):
-            for j in range(i+1, self.num_targets):
+        for i in range(self.num_target):
+            for j in range(i+1, self.num_target):
                 distance = np.linalg.norm(self.targets[i].position[:2] - self.targets[j].position[:2])
                 if distance < self.distance_threshold:
                     penalty = self.safe_penalty_coeff * (self.distance_threshold - distance)
-                    rewards[self.num_hunters + i] -= penalty
-                    rewards[self.num_hunters + j] -= penalty
+                    rewards[self.num_hunter + i] -= penalty
+                    rewards[self.num_hunter + j] -= penalty
 
         # reward for safety (uav-obstacles)
         for agent in self.hunters + self.targets:
             min_laser_length = min(agent.lasers)
-            collision_penalty = -self.safe_penalty_coeff * (self.L_sensor - min_laser_length) / self.L_sensor
+            collision_penalty = -self.safe_penalty_coeff * (agent.lidar.max_detect_d - min_laser_length) / agent.lidar.max_detect_d
             if agent in self.hunters:
                 agent_index = self.hunters.index(agent)
             else:
-                agent_index = self.targets.index(agent) + self.num_hunters
+                agent_index = self.targets.index(agent) + self.num_hunter
             rewards[agent_index] += collision_penalty
 
         return rewards, dones
@@ -398,8 +398,8 @@ class MAPursuitEnv:
         """
         normalize rewards for hunters and targets
         """
-        h_rewards = rewards[:self.num_hunters]
-        t_rewards = rewards[self.num_hunters:]
+        h_rewards = rewards[:self.num_hunter]
+        t_rewards = rewards[self.num_hunter:]
         
         h_mean = np.mean(h_rewards)
         h_std = np.std(h_rewards)

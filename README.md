@@ -1,4 +1,23 @@
 [中文](README_zh.md) | [English](README.md)
+# MA-Pursuit
+This project is forked from https://github.com/reinshift/KF_AA_MARL
+
+The project is modified to support following features: 
+* Training manager
+  - [x] Set all magic numbers into a .yaml file
+  - [x] Save reward.csv & models & training_config into the same save_dir
+  - [x] Auto generating the save_dir name
+* Env Generation
+  - [x] Random number of Obstacle/Hunter/Target
+  - [x] Random radius & height for obstacles
+* MARL
+  - [ ] All hunter sharing the same policy model
+  - [ ] Expand Agent actions from 2D to 3D or more
+  - [ ] Agents with more powerful sensors
+
+
+
+
 
 # MATD3 for Multi-Target Pursuit
 

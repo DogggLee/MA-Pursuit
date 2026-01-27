@@ -420,7 +420,7 @@ class MAPursuitEnv:
         return normalized_rewards
 
     # TODO: use simulator like airsim to render
-    def render(self):
+    def render(self, exp_name):
         """
         Visualize the environment.
         """
@@ -428,7 +428,7 @@ class MAPursuitEnv:
         self.ax.set_xlim(0, self.map_size)
         self.ax.set_ylim(0, self.map_size)
         self.ax.set_zlim(0, self.map_size/4)
-        self.ax.set_title("Environment Visualization")
+        self.ax.set_title(exp_name)
 
         # Draw boundaries
         self.ax.plot([0, self.map_size, self.map_size, 0, 0], [0, 0, self.map_size, self.map_size, 0], [0, 0, 0, 0, 0], color='black', linewidth=2)

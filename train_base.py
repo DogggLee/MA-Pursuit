@@ -134,7 +134,7 @@ def train_split(args, config):
             h_next_obs, t_next_obs, rewards, dones = env.step(actions)
             
             if args.render:
-                env.render()
+                env.render(exp_dirname)
             current_step += 1
 
             rewards_hunters = rewards[:env.num_hunter]
@@ -297,12 +297,12 @@ def train_share(args, config):
             actions_targets = []
 
             # hunters choose action
-            for i, hunter in enumerate(env.num_hunter):
+            for i in range(env.num_hunter):
                 action = hunter_share.select_action(h_obs[i])
                 actions_hunters.append(action)
 
             # targets choose action
-            for i, target in enumerate(env.num_target):
+            for i in range(env.num_target):
                 action = target_share.select_action(t_obs[i])
                 actions_targets.append(action)
             
@@ -312,7 +312,7 @@ def train_share(args, config):
             h_next_obs, t_next_obs, rewards, dones = env.step(actions)
             
             if args.render:
-                env.render()
+                env.render(exp_dirname)
             current_step += 1
 
             rewards_hunters = rewards[:env.num_hunter]
@@ -386,6 +386,7 @@ if __name__ == '__main__':
     config = load_config(args.config_path)
 
     if config.Model.share:
+        print("Use sharing model !!!!!!")
         train_share(args, config)
     else:
         train_split(args, config)

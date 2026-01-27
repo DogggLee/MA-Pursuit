@@ -1,10 +1,10 @@
 Base:
   seed: 20
-  exp_name: "base_exp"
+  exp_name: "5vs2-20obs"
 
 Train:
   num_episodes: 500
-  max_steps: 150
+  max_steps: 200
 
   batch_size: 256
   lr: 5e-4
@@ -40,8 +40,8 @@ Reward:
 Env:
   time_step: 0.5  
   # 任务参数
-  map_size: 300       # m
-  num_obstacle: [2, 10]
+  map_size: 500       # m
+  num_obstacle: [15, 20]
   num_hunters: [3, 6]
   num_targets: [1, 3]
 
@@ -54,7 +54,7 @@ Env:
   obstacle_height_range: [3, 30]
   obstacle_speed: 0.0
   hunter_init_height: 10
-  targte_init_height: 5
+  target_init_height: 10
 
   collision_dist: 10  # m
   escape_dist: 30
@@ -63,36 +63,30 @@ Env:
 Hunter:
   # 运动性能配置
   action_dim: 2
-  max_acc: 3.0      # m/s^2
-  max_vel: 10.0       # m/s
+  max_acc: 5.0      # m/s^2
+  max_vel: 20.0       # m/s
 
   # 探测性能配置
-  lidar_beams: 16
-  max_lidar_dist: 100
+  lidar_beams: 32
+  max_lidar_dist: 50
   
   # 协作性能配置
   # Hunter 最大相互通信距离， -1表示无限  
   max_comm_radius: 100 # m
   # Hunter 最多考虑的队友数量
   max_comm_num: 2
-  # Neighbor pos * N_neighbor + ego-pos + ego-velo + target-pos + dist + N_beam
-  # 3 * K + 3 + 3 + 3 + 1 + 16
-  hunter_actor_dim: 32 
 
 Target:
   
   # 运动性能配置
   action_dim: 2
-  max_acc: 3.0      # m/s^2
-  max_vel: 10.0       # m/s
+  max_acc: 5.0      # m/s^2
+  max_vel: 20.0       # m/s
 
   # 探测性能配置
-  lidar_beams: 16
-  max_lidar_dist: 100
+  lidar_beams: 32
+  max_lidar_dist: 50
 
   # 对抗性能配置，同时考虑3个Hunter的位置
   max_hunter_num: 3
-  # Hunter_pos * N_near_H + ego-pos + ego-velo + N_beams
-  # 3 * K2 + 3 + 3 + 16
-  target_actor_dim: 31
 

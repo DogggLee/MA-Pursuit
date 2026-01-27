@@ -31,7 +31,7 @@ class MAPursuitEnv:
                  visualize_lasers=False):
         self.map_size = config.Env.map_size # length of boundary
 
-        self.num_obstacle = config.Env.num_obstacle # number of obstacles
+        self.num_obstacles = config.Env.num_obstacle # number of obstacles
         self.num_hunters = config.Env.num_hunters # number of hunters
         self.num_targets = config.Env.num_targets # number of targets
 
@@ -66,13 +66,14 @@ class MAPursuitEnv:
             multi_obs_info.append(obstacle._return_obs_info())
 
     def gen_env(self, config):
-        self.num_obs = np.random.randint(self.num_obstacle[0], self.num_obstacle[1]+1)
+        self.num_obstacle = np.random.randint(self.num_obstacles[0], self.num_obstacles[1]+1)
         self.num_hunter = np.random.randint(self.num_hunters[0], self.num_hunters[1]+1)
         self.num_target = np.random.randint(self.num_targets[0], self.num_targets[1]+1)
 
+        print(f"Generate MA-Pursive Env: {self.num_obstacle} Obs, {self.num_hunter} Hunters, {self.num_target} Targets")
         # set of obstacles
         self.obstacles = []
-        for _ in range(self.num_obs):
+        for _ in range(self.num_obstacle):
             obs = Obstacle(config.Env.map_size, config.Env.obstacle_margin,
                            config.Env.obstacle_radius_range, config.Env.obstacle_height_range,
                            speed=config.Env.obstacle_speed)
@@ -98,7 +99,7 @@ class MAPursuitEnv:
 
     def re_gen(self):
         self.gen_env(self.config)
-
+        return self.reset()
 
     def reset(self):
         '''

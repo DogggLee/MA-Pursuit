@@ -54,7 +54,7 @@ Env:
   obstacle_height_range: [3, 30]
   obstacle_speed: 0.0
   hunter_init_height: 10
-  targte_init_height: 5
+  target_init_height: 10
 
   collision_dist: 10  # m
   escape_dist: 30

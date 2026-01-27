@@ -30,6 +30,7 @@ class Lidar:
         # local obstacle information
         self.obstacles_near = self._detect_obs_near(self.obstacles,position,self.max_detect_d)
 
+        # 判断是否处于障碍物内部
         for cylinder in self.obstacles_near:
             cx, cy, cz, r, h = cylinder._return_obs_info()
             distance_to_center = np.sqrt((x0 - cx)**2 + (y0 - cy)**2)
@@ -39,6 +40,7 @@ class Lidar:
                 self.isInObs = True
                 return
 
+        # 每条激光射线计算与障碍物的交点
         for i, angle in enumerate(self.angles):
             for cylinder in self.obstacles:
                 cx, cy, cz, r, h = cylinder._return_obs_info()

@@ -1,6 +1,6 @@
 Base:
   seed: 20
-  exp_name: "share_base"
+  exp_name: "share_base1"
 
 Train:
   num_episodes: 500
@@ -29,7 +29,7 @@ Train:
   ckp_score_threshold: 300
 
 Model:
-  share: false
+  share: true
 
   hunter_lrdecay: false
   hunter_orthogonalize: false
@@ -48,8 +48,8 @@ Env:
   # 任务参数
   map_size: 500       # m
   num_obstacle: [10, 20]
-  num_hunters: [3, 6]
-  num_targets: [1, 3]
+  num_hunters: [4, 8]
+  num_targets: [2, 6]
 
   # 随机生成参数
   obstacle_margin: 0.1  # [0 ~ 0.5)

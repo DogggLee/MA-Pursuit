@@ -15,7 +15,7 @@ The project is modified to support following features:
   - [x] Random number of Obstacle/Hunter/Target
   - [x] Random radius & height for obstacles
 * MARL
-  - [ ] All hunter sharing the same policy model
+  - [x] All agents sharing the same policy model
   - [ ] Expand Agent actions from 2D to 3D or more
   - [ ] Agents with more powerful sensors
 

@@ -4,9 +4,13 @@ This project is forked from https://github.com/reinshift/KF_AA_MARL
 
 The project is modified to support following features: 
 * Training manager
-  - [x] Set all magic numbers into a .yaml file
-  - [x] Save reward.csv & models & training_config into the same save_dir
-  - [x] Auto generating the save_dir name
+  - [x] Set all magic numbers into a ```.yaml``` file
+  ```python
+    python train_base.py config/base.yaml 
+  ```
+  - [x] Auto generating the ```save_dir``` name
+  - [x] Save reward.csv & models & training_config into the same save_dir (default to ```./checkpoints/{save_dir}```)
+  
 * Env Generation
   - [x] Random number of Obstacle/Hunter/Target
   - [x] Random radius & height for obstacles

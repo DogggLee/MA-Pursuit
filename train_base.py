@@ -8,8 +8,7 @@ from datetime import datetime
 from path import Path
 import shutil
 
-from src.MultiTargetEnv import MultiTarEnv, set_global_seeds
-from src.MAPursuitEnv import MAPursuitEnv
+from src.MAPursuitEnv import MAPursuitEnv, set_global_seeds
 from src.MATD3 import MATD3Agent
 from src.replaybuffer import ReplayBuffer
 from src.utils import load_config, generate_exp_dirname, calc_dim
@@ -30,8 +29,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('config_path', type=str, default="config/base.yaml", help='Exp config file path')
 parser.add_argument('--dump_root', type=str, default="checkpoints", help='Checkpoint path')
 parser.add_argument('--checkpoint', type=str, help='Checkpoint path')
-parser.add_argument('--render', type=str2bool, default=False, help='whether to render the environment')
-parser.add_argument('--visualizelaser', type=str2bool, default=True, help='whether to visualize laser')
+parser.add_argument('--render', action="store_true", default=False, help='whether to render the environment')
+parser.add_argument('--visualize_laser', action="store_true", default=True, help='whether to visualize laser')
 
 def train_split(args):
     args.config_path = Path(args.config_path)
@@ -50,7 +49,7 @@ def train_split(args):
     print(f"Using device: {device}")
     
     h_dim, t_dim = calc_dim(config)
-    env = MAPursuitEnv(config, h_dim, t_dim, args.visualize_lasers)
+    env = MAPursuitEnv(config, h_dim, t_dim, args.visualize_laser)
 
     # Initialize agents for hunters and targets
     hunters = [MATD3Agent(obs_dim=h_dim,
@@ -63,8 +62,8 @@ def train_split(args):
                           iforthogonalize=config.Model.hunter_orthogonalize,
                           noise_clip=config.Train.noise_clip,
                           max_acc=config.Hunter.max_acc,
-                          if_lr_decay=config.Model.lrdecay,
-                          total_episodes=config.Train.num_episodes) for _ in range(env.num_hunters)]
+                          if_lr_decay=config.Model.hunter_lrdecay,
+                          total_episodes=config.Train.num_episodes) for _ in range(env.num_hunter)]
 
     targets = [MATD3Agent(obs_dim=t_dim,
                           action_dim=config.Target.action_dim,
@@ -76,8 +75,8 @@ def train_split(args):
                           iforthogonalize=config.Model.target_orthogonalize,
                           noise_clip=config.Train.noise_clip,
                           max_acc=config.Target.max_acc,
-                          if_lr_decay=config.Model.lrdecay,
-                          total_episodes=args.num_episodes) for _ in range(env.num_targets)]
+                          if_lr_decay=config.Model.target_lrdecay,
+                          total_episodes=config.Train.num_episodes) for _ in range(env.num_target)]
 
 
     if args.checkpoint and Path(args.checkpoint).exists():
@@ -175,7 +174,7 @@ def train_split(args):
 
         total_reward_hunters = episode_rewards_hunters.sum()
         total_reward_targets = episode_rewards_targets.sum()
-        print(f"Episode {episode}/{args.num_episodes}, "
+        print(f"Episode {episode}/{config.Train.num_episodes}, "
               f"Total Reward Hunters: {total_reward_hunters:.2f}, "
               f"Total Reward Targets: {total_reward_targets:.2f}")
 

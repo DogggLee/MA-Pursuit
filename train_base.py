@@ -8,12 +8,14 @@ from datetime import datetime
 from path import Path
 import shutil
 
-from src.MAPursuitEnv import MAPursuitEnv, set_global_seeds
+from src.MAPursuitEnv import MAPursuitEnv, set_global_seeds, generate_test_scenarios
 from src.MATD3 import MATD3Agent
 from src.replaybuffer import ReplayBuffer
 from src.utils import load_config, generate_exp_dirname, calc_dim
 
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation  # 新增：用于GIF生成
+from collections import deque  # 新增：滑动窗口
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -31,7 +33,8 @@ parser.add_argument('--dump_root', type=str, default="checkpoints", help='Checkp
 parser.add_argument('--checkpoint', type=str, help='Checkpoint path')
 parser.add_argument('--render', action="store_true", default=False, help='whether to render the environment')
 parser.add_argument('--visualize_laser', action="store_true", default=True, help='whether to visualize laser')
-parser.add_argument('--fill_laser_range', action="store_true", default=True, help='whether to visualize laser')
+parser.add_argument('--fill_laser_range', action="store_true", default=True, help='whether to visualize laser range')
+parser.add_argument('--visualize_traj', action="store_true", default=True, help='whether to visualize trajectory')
 
 def train_split(args, config):
     exp_dirname = generate_exp_dirname(config)
@@ -219,6 +222,8 @@ def train_share(args, config):
     
     h_dim, t_dim = calc_dim(config)
     env = MAPursuitEnv(config, args.visualize_laser)
+    test_env = MAPursuitEnv(config, args.visualize_laser)
+    test_env_cfgs = generate_test_scenarios(config, config.Train.test_env_num)
 
     # Initialize agents for hunters and targets
     hunter_share = MATD3Agent(obs_dim=h_dim,
@@ -278,6 +283,9 @@ def train_share(args, config):
     score_threshold = config.Train.ckp_score_threshold
     progressive_episode_threshold = config.Train.env_progress_regen_episode # 初期一定训练轮数后开启场景全随机
     for episode in range(config.Train.num_episodes):
+        episode_dir = exp_dir / f"{episode:03d}"
+        episode_dir.makedirs_p()
+
         if config.Train.env_random:
             if config.Train.env_progress_random and episode < progressive_episode_threshold:
                 h_obs, t_obs = env.reset()
@@ -293,6 +301,11 @@ def train_share(args, config):
         current_step = 1
 
         # Play 直至episode终止
+        train_frames = []
+        fig = plt.figure(figsize=(8, 8))
+        ax = fig.add_subplot(111, projection='3d')  # 适配2D/3D
+        ax.view_init(elev=90, azim=0)   # 俯视图
+
         while (not done) and (current_step <= config.Train.max_steps):
             actions_hunters = []
             actions_targets = []
@@ -313,7 +326,14 @@ def train_share(args, config):
             h_next_obs, t_next_obs, rewards, dones = env.step(actions)
             
             if args.render:
-                env.render(exp_dirname, args.fill_laser_range)
+                env.render(exp_dirname, args.fill_laser_range, traj=args.visualize_traj, headless=False)
+            else:
+                env.render(exp_dirname, traj=args.visualize_traj, ax=ax, headless=True)
+            frame = ax.figure.canvas.draw()
+            image = np.frombuffer(frame.tostring_rgb(), dtype='uint8')
+            image = image.reshape(ax.figure.canvas.get_width_height()[::-1] + (3,))
+            train_frames.append(image)
+
             current_step += 1
 
             rewards_hunters = rewards[:env.num_hunter]
@@ -359,16 +379,36 @@ def train_share(args, config):
             writer.writerow([episode, total_reward_hunters, total_reward_targets,
                              env.num_obstacle, env.num_hunter, env.num_target])
 
+        # 保存GIF
+        fps = 10
+        animation.ArtistAnimation(fig, train_frames, interval=1000//fps, repeat_delay=1000)
+        gif_path = episode_dir / f"train-{i:03d}.gif"
+        ani = animation.PillowWriter(fps=fps)
+        ani.setup(fig, gif_path, dpi=100)
+        for frame in train_frames:
+            ax.imshow(frame)
+            ani.grab_frame()
+
+        ani.finish()
+        plt.close(fig)
+
+        avg_eval_reward = val_share(args, test_env, 
+                                    hunter_share,
+                                    target_share,
+                                    test_env_cfgs, 
+                                    config, exp_dirname,
+                                    episode_dir)
+
         # save model
         should_save = False
         save_reason = ""
         if episode % config.Train.ckp_save_interval == 0 and episode > 0:
             should_save = True
             save_reason = f"ckp_{config.Train.ckp_save_interval}"
-        if total_reward_hunters > score_threshold:
-            score_threshold = total_reward_hunters
+        if avg_eval_reward > score_threshold:
+            score_threshold = avg_eval_reward
             should_save = True
-            save_reason = f"score_{total_reward_hunters:.0f}"
+            save_reason = f"score_{avg_eval_reward:.0f}"
         
         if should_save:
             save_dir = exp_model_dir / f"{save_reason}"
@@ -379,6 +419,91 @@ def train_share(args, config):
 
             print(f"Models saved at episode {episode} in {save_dir}")
 
+def val_share(args, env: MAPursuitEnv, 
+              hunter_share: MATD3Agent, target_share: MATD3Agent, 
+              test_env_cfgs, 
+              config, 
+              val_title,
+              gif_dump_root: Path, fps=10):
+    """在测试集上评估模型，返回平均奖励"""
+    total_test_reward = 0.0
+    for i, test_env_cfg in enumerate(test_env_cfgs):
+        # 重置环境到测试场景
+        h_obs, t_obs = env.gen_env(config, 
+                        test_env_cfg["num_obstacle"],
+                        test_env_cfg["num_hunter"],
+                        test_env_cfg["num_target"],
+                        test_env_cfg["seed"])
+        frames = []  # 存储每一帧
+        fig = plt.figure(figsize=(8, 8))
+        ax = fig.add_subplot(111, projection='3d')  # 适配2D/3D
+        ax.view_init(elev=90, azim=0)   # 俯视图
+
+        # 初始化episode奖励
+        episode_rewards_hunters = np.zeros(env.num_hunter)
+        episode_rewards_targets = np.zeros(env.num_target)
+        done = False
+        current_step = 1
+
+        # Play 直至episode终止
+        while (not done) and (current_step <= config.Train.max_steps):
+            # 无噪声评估（避免探索影响测试结果）
+            actions_hunters = []
+            actions_targets = []
+
+            # hunters choose action
+            for i in range(env.num_hunter):
+                action = hunter_share.select_action(h_obs[i], noise=False)
+                actions_hunters.append(action)
+
+            # targets choose action
+            for i in range(env.num_target):
+                action = target_share.select_action(t_obs[i], noise=False)
+                actions_targets.append(action)
+            
+            # concatenate all actions
+            actions = actions_hunters + actions_targets
+            # execute all actions & interact with env
+            h_next_obs, t_next_obs, rewards, dones = env.step(actions)
+            
+            # if args.render:
+            env.render(f"{val_title}_valScene-{i}", args.fill_laser_range, 
+                       traj=args.visualize_traj, ax=ax, headless=True)
+            frame = ax.figure.canvas.draw()
+            image = np.frombuffer(frame.tostring_rgb(), dtype='uint8')
+            image = image.reshape(ax.figure.canvas.get_width_height()[::-1] + (3,))
+            frames.append(image)
+
+            current_step += 1
+
+            rewards_hunters = rewards[:env.num_hunter]
+            rewards_targets = rewards[env.num_hunter:]
+
+            episode_rewards_hunters += rewards_hunters
+            episode_rewards_targets += rewards_targets
+
+            h_obs = h_next_obs
+            t_obs = t_next_obs
+
+            done = all(dones)
+        
+        total_test_reward += episode_rewards_hunters.sum()
+
+        # 保存GIF
+        animation.ArtistAnimation(fig, frames, interval=1000//fps, repeat_delay=1000)
+        gif_path = gif_dump_root / f"valScene-{i:03d}.gif"
+        ani = animation.PillowWriter(fps=fps)
+        ani.setup(fig, gif_path, dpi=100)
+        for frame in frames:
+            ax.imshow(frame)
+            ani.grab_frame()
+
+        ani.finish()
+        plt.close(fig)
+
+    avg_test_reward = total_test_reward / len(test_env_cfgs)
+    return avg_test_reward
+ 
 if __name__ == '__main__':
     args = parser.parse_args()
 

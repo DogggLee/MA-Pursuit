@@ -31,6 +31,7 @@ parser.add_argument('--dump_root', type=str, default="checkpoints", help='Checkp
 parser.add_argument('--checkpoint', type=str, help='Checkpoint path')
 parser.add_argument('--render', action="store_true", default=False, help='whether to render the environment')
 parser.add_argument('--visualize_laser', action="store_true", default=True, help='whether to visualize laser')
+parser.add_argument('--fill_laser_range', action="store_true", default=True, help='whether to visualize laser')
 
 def train_split(args, config):
     exp_dirname = generate_exp_dirname(config)
@@ -46,7 +47,7 @@ def train_split(args, config):
     print(f"Using device: {device}")
     
     h_dim, t_dim = calc_dim(config)
-    env = MAPursuitEnv(config, h_dim, t_dim, args.visualize_laser)
+    env = MAPursuitEnv(config, args.visualize_laser)
 
     # Initialize agents for hunters and targets
     hunters = [MATD3Agent(obs_dim=h_dim,
@@ -134,7 +135,7 @@ def train_split(args, config):
             h_next_obs, t_next_obs, rewards, dones = env.step(actions)
             
             if args.render:
-                env.render(exp_dirname)
+                env.render(exp_dirname, args.fill_laser_range)
             current_step += 1
 
             rewards_hunters = rewards[:env.num_hunter]
@@ -217,7 +218,7 @@ def train_share(args, config):
     print(f"Using device: {device}")
     
     h_dim, t_dim = calc_dim(config)
-    env = MAPursuitEnv(config, h_dim, t_dim, args.visualize_laser)
+    env = MAPursuitEnv(config, args.visualize_laser)
 
     # Initialize agents for hunters and targets
     hunter_share = MATD3Agent(obs_dim=h_dim,
@@ -312,7 +313,7 @@ def train_share(args, config):
             h_next_obs, t_next_obs, rewards, dones = env.step(actions)
             
             if args.render:
-                env.render(exp_dirname)
+                env.render(exp_dirname, args.fill_laser_range)
             current_step += 1
 
             rewards_hunters = rewards[:env.num_hunter]
@@ -377,7 +378,6 @@ def train_share(args, config):
             target_share.save_model(save_dir, agent_id=0, agent_type='target')
 
             print(f"Models saved at episode {episode} in {save_dir}")
-
 
 if __name__ == '__main__':
     args = parser.parse_args()

@@ -116,7 +116,7 @@ class Lidar:
                 nearby_obstacles.append(obstacle)
         return nearby_obstacles
 
-    def visualize_lasers(self,position,ax):
+    def visualize_lasers_ori(self,position,ax):
         """
         Visualize the laser rays.
         """
@@ -127,6 +127,38 @@ class Lidar:
         # Plot laser rays
         for x, y, d in zip(x_end, y_end, self.distances):
             ax.plot([x0, x], [y0, y], [z0, z0], color='green', alpha=0.6)
+
+    def visualize_lasers(self, position, ax, label=False, fill=False):
+        """
+        Visualize the laser rays and scan range contour.
+        :param position: (x0, y0, z0) 智能体位置
+        :param ax: 3D绘图轴对象
+        """
+        x0, y0, z0 = position
+        # 计算每条激光的终点坐标
+        x_end = x0 + self.distances * np.cos(self.angles)
+        y_end = y0 + self.distances * np.sin(self.angles)
+
+        # 1. 绘制原始激光射线（保留原有逻辑）
+        for i, (x, y, d) in enumerate(zip(x_end, y_end, self.distances)):
+            ax.plot([x0, x], [y0, y], [z0, z0], color='green', alpha=0.6, label='Laser Ray' if label and (i == 0) else "")
+
+        # 2. 新增：绘制扫描范围轮廓（闭合多边形）
+        # 拼接起点和终点，形成闭合轮廓
+        contour_x = np.concatenate([x_end, [x_end[0]]])
+        contour_y = np.concatenate([y_end, [y_end[0]]])
+        contour_z = np.full_like(contour_x, z0)
+        # 绘制轮廓线（红色加粗）
+        ax.plot(contour_x, contour_y, contour_z, color='red', linewidth=2, label='Scan Range Contour' if label else "")
+
+        if fill:
+            # 可选：填充扫描范围（半透明）
+            ax.fill_between(contour_x[:-1], contour_y[:-1], zs=z0, alpha=0.2, color='red', label='Scan Area' if label else "")
+
+        # 设置图例（避免重复）
+        handles, labels = ax.get_legend_handles_labels()
+        by_label = dict(zip(labels, handles))
+        ax.legend(by_label.values(), by_label.keys(), loc='upper right')
 
 
     def _create_cylinders(self, ax):

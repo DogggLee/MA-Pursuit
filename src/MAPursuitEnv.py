@@ -5,10 +5,8 @@ from . import utils
 from .Lidar import Lidar
 
 '''
-    class MultiTarEnv: is a world created with UAVs (multi-target&hunter) and obstacles in a limited square area.
+    class MAPursuitEnv: is a world created with UAVs (multi-target&hunter) and obstacles in a limited square area.
                        param : 
-                            h_actor_dim: a list to store hunters' output dimensions
-                            t_actor_dim: a list to store targets' output dimensions
                        funcs :
 
     class Obstacle: defined obstacles and their contributions
@@ -26,17 +24,12 @@ def set_global_seeds(seed):
 class MAPursuitEnv:
     def __init__(self,
                  config,
-                 h_actor_dim,
-                 t_actor_dim,
                  visualize_lasers=False):
         self.map_size = config.Env.map_size # length of boundary
 
         self.num_obstacles = config.Env.num_obstacle # number of obstacles
         self.num_hunters = config.Env.num_hunters # number of hunters
         self.num_targets = config.Env.num_targets # number of targets
-
-        self.h_actor_dim = h_actor_dim # each hunter's observation dimension
-        self.t_actor_dim = t_actor_dim # each target's observation dimension
 
         self.time_step = config.Env.time_step # update time step
         
@@ -420,7 +413,7 @@ class MAPursuitEnv:
         return normalized_rewards
 
     # TODO: use simulator like airsim to render
-    def render(self, exp_name):
+    def render(self, exp_name, pause=0.001):
         """
         Visualize the environment.
         """
@@ -438,20 +431,23 @@ class MAPursuitEnv:
             self._create_cylinders(self.ax, cx, cy, cz, r, h)
 
         # Draw hunters
+        label = True
         for hunter in self.hunters:
             x, y, z = hunter.position
             self.ax.scatter(x, y, z, color='red', label='Hunter' if hunter == self.hunters[0] else "")
             if self.visualize_lasers:
                 # Draw lasers
-                hunter.lidar.visualize_lasers(hunter.position,self.ax)
+                hunter.lidar.visualize_lasers(hunter.position,self.ax, label=label, fill=True)
+                label = False
 
         # Draw targets
         for target in self.targets:
             x, y, z = target.position
             self.ax.scatter(x, y, z, color='green', label='Target' if target == self.targets[0] else "")
 
+
         self.ax.legend(loc='upper right')
-        plt.pause(0.001)
+        plt.pause(pause)
 
     def close(self):
         plt.close(self.fig)

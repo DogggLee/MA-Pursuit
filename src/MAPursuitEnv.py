@@ -21,6 +21,28 @@ def set_global_seeds(seed):
         random.seed(seed)
         T.manual_seed(seed)
 
+def generate_test_scenarios(config, num_scenarios=20):
+    """生成固定的测试集场景（可根据Env逻辑自定义）"""
+    test_scenarios = []
+    for i in range(num_scenarios):
+        # 示例：不同猎人/目标数量、地图尺寸的组合
+        num_obstacle = np.random.randint(config.Env.num_obstacles[0], config.Env.num_obstacles[1]+1)
+        
+        num_hunter = np.random.randint(config.Env.num_hunters[0], config.Env.num_hunters[1]+1)
+        num_target = np.random.randint(config.Env.num_targets[0], config.Env.num_targets[1]+1)
+        while num_hunter < num_target:
+            num_hunter = np.random.randint(config.Env.num_hunters[0], config.Env.num_hunters[1]+1)
+            num_target = np.random.randint(config.Env.num_targets[0], config.Env.num_targets[1]+1)
+
+        scenario = {
+            "num_hunter": num_hunter,
+            "num_target": num_target,
+            "num_obstacle": num_obstacle,
+            "seed": config.Base.seed + 100 + i  # 固定种子保证场景可复现
+        }
+        test_scenarios.append(scenario)
+    return test_scenarios
+
 class MAPursuitEnv:
     def __init__(self,
                  config,
@@ -30,6 +52,8 @@ class MAPursuitEnv:
         self.num_obstacles = config.Env.num_obstacle # number of obstacles
         self.num_hunters = config.Env.num_hunters # number of hunters
         self.num_targets = config.Env.num_targets # number of targets
+
+        assert self.num_hunters[1] >= self.targets[0], f"The Hunters num {self.num_hunters} should not be less than Targets {self.num_targets}"
 
         self.time_step = config.Env.time_step # update time step
         
@@ -57,11 +81,11 @@ class MAPursuitEnv:
         multi_obs_info = []
         for obstacle in self.obstacles:
             multi_obs_info.append(obstacle._return_obs_info())
-
-    def gen_env(self, config):
-        self.num_obstacle = np.random.randint(self.num_obstacles[0], self.num_obstacles[1]+1)
-        self.num_hunter = np.random.randint(self.num_hunters[0], self.num_hunters[1]+1)
-        self.num_target = np.random.randint(self.num_targets[0], self.num_targets[1]+1)
+    
+    def _create_env(self, config, num_obstacle, num_hunter, num_target):
+        self.num_obstacle = num_obstacle
+        self.num_hunter = num_hunter
+        self.num_target = num_target
 
         print(f"Generate MA-Pursive Env: {self.num_obstacle} Obs, {self.num_hunter} Hunters, {self.num_target} Targets")
         # set of obstacles
@@ -90,8 +114,27 @@ class MAPursuitEnv:
                             config.Target.max_vel, config.Target.max_acc, config.Env.time_step)
             self.targets.append(target)
 
+    def gen_env(self, config, num_obstacle, num_hunter, num_target, seed):
+        set_global_seeds(seed)
+        self._create_env(config, num_obstacle, num_hunter, num_target)
+        return self.reset()
+
     def re_gen(self):
-        self.gen_env(self.config)
+        """
+        确保生成场景Hunter数量>=Target数量
+        
+        :param self: 说明
+        :param config: 说明
+        """
+        self.num_obstacle = np.random.randint(self.num_obstacles[0], self.num_obstacles[1]+1)
+        
+        self.num_hunter = np.random.randint(self.num_hunters[0], self.num_hunters[1]+1)
+        self.num_target = np.random.randint(self.num_targets[0], self.num_targets[1]+1)
+        while self.num_hunter < self.num_target:
+            self.num_hunter = np.random.randint(self.num_hunters[0], self.num_hunters[1]+1)
+            self.num_target = np.random.randint(self.num_targets[0], self.num_targets[1]+1)
+
+        self._create_env(self.config, self.num_obstacle, self.num_hunter, self.num_target)
         return self.reset()
 
     def reset(self):
@@ -112,6 +155,7 @@ class MAPursuitEnv:
         # Get initial observations
         h_obs, t_obs = self._get_observations()
 
+        # return h_obs,t_obs, {'num_obstacle': self.num_obstacle, 'num_hunter': self.num_hunter, 'num_target': self.num_target}
         return h_obs,t_obs
 
     # TODO!!!
@@ -413,45 +457,71 @@ class MAPursuitEnv:
         return normalized_rewards
 
     # TODO: use simulator like airsim to render
-    def render(self, exp_name, pause=0.001):
+    def render(self, exp_name,  
+               pause=0.001, 
+               traj=False,
+               ax=None, headless=False):
         """
         Visualize the environment.
         """
-        self.ax.clear()
-        self.ax.set_xlim(0, self.map_size)
-        self.ax.set_ylim(0, self.map_size)
-        self.ax.set_zlim(0, self.map_size/4)
-        self.ax.set_title(exp_name)
+        if ax is None:
+            ax = self.ax
+
+        ax.clear()
+        ax.set_xlim(0, self.map_size)
+        ax.set_ylim(0, self.map_size)
+        ax.set_zlim(0, self.map_size/4)
+        ax.set_title(exp_name)
 
         # Draw boundaries
-        self.ax.plot([0, self.map_size, self.map_size, 0, 0], [0, 0, self.map_size, self.map_size, 0], [0, 0, 0, 0, 0], color='black', linewidth=2)
+        ax.plot([0, self.map_size, self.map_size, 0, 0], [0, 0, self.map_size, self.map_size, 0], [0, 0, 0, 0, 0], color='black', linewidth=2)
         # Draw obstacles (cylinders)
         for obstacle in self.obstacles:
             cx, cy, cz, r, h = obstacle._return_obs_info()
-            self._create_cylinders(self.ax, cx, cy, cz, r, h)
+            self._create_cylinders(ax, cx, cy, cz, r, h)
 
         # Draw hunters
         label = True
-        for hunter in self.hunters:
+        for i, hunter in enumerate(self.hunters):
             x, y, z = hunter.position
-            self.ax.scatter(x, y, z, color='red', label='Hunter' if hunter == self.hunters[0] else "")
+            ax.scatter(x, y, z, color='red', label='Hunter' if hunter == self.hunters[0] else "")
             if self.visualize_lasers:
                 # Draw lasers
-                hunter.lidar.visualize_lasers(hunter.position,self.ax, label=label, fill=True)
+                hunter.lidar.visualize_lasers(hunter.position,ax, label=label, fill=True)
                 label = False
+            
+            if traj and hunter.history_pos:
+                    trajectory = np.array(hunter.history_pos)
+                    ax.plot(trajectory[:, 0], trajectory[:, 1], trajectory[:, 2], 
+                            color='red', alpha=0.6)
+                    ax.scatter(trajectory[0, 0], trajectory[0, 1], trajectory[0, 2], 
+                              color='blue', marker='o', s=100, label='Start' if i == 0 else "")
+                    ax.scatter(trajectory[-1, 0], trajectory[-1, 1], trajectory[-1, 2], 
+                              color='red', marker='x', s=100, label='End' if i == 0 else "")
 
         # Draw targets
-        for target in self.targets:
+        for i, target in enumerate(self.targets):
             x, y, z = target.position
-            self.ax.scatter(x, y, z, color='green', label='Target' if target == self.targets[0] else "")
+            ax.scatter(x, y, z, color='green', label='Target' if target == self.targets[0] else "")
 
+            if traj and target.history_pos:
+                trajectory = np.array(target.history_pos)
+                ax.plot(trajectory[:, 0], trajectory[:, 1], trajectory[:, 2], 
+                        color='green', alpha=0.6, label=f'Target {i}')
+                ax.scatter(trajectory[0, 0], trajectory[0, 1], trajectory[0, 2], 
+                            color='blue', marker='o', s=100)
+                ax.scatter(trajectory[-1, 0], trajectory[-1, 1], trajectory[-1, 2], 
+                            color='green', marker='x', s=100)
 
-        self.ax.legend(loc='upper right')
-        plt.pause(pause)
+        ax.legend(loc='upper right')
+        if not headless:
+            plt.pause(pause)
 
+    def get_ax(self):
+        return self.ax
+    
     def close(self):
         plt.close(self.fig)
-
 
     def _create_cylinders(self, ax, x, y, z, r, h):
         """

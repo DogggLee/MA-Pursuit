@@ -49,11 +49,11 @@ class MAPursuitEnv:
                  visualize_lasers=False):
         self.map_size = config.Env.map_size # length of boundary
 
-        self.num_obstacles = config.Env.num_obstacle # number of obstacles
+        self.num_obstacles = config.Env.num_obstacles # number of obstacles
         self.num_hunters = config.Env.num_hunters # number of hunters
         self.num_targets = config.Env.num_targets # number of targets
 
-        assert self.num_hunters[1] >= self.targets[0], f"The Hunters num {self.num_hunters} should not be less than Targets {self.num_targets}"
+        assert self.num_hunters[1] >= self.num_targets[0], f"The Hunters num {self.num_hunters} should not be less than Targets {self.num_targets}"
 
         self.time_step = config.Env.time_step # update time step
         
@@ -64,13 +64,11 @@ class MAPursuitEnv:
         
         ## Instancing hunters and targets, obstacles.
         self.config = config
-        self.gen_env(config)
+        self.re_gen()
 
         # Control whether to visualize laser scans & plot relevant
         self.visualize_lasers = visualize_lasers
-        self.fig = plt.figure(figsize=(8,8))
-        self.ax = self.fig.add_subplot(111,projection='3d')
-
+    
         # reward relevant
         self.capture_reward = config.Reward.capture_reward_w        # roundup success reward
         self.chase_reward_coeff = config.Reward.chase_reward_w    # chase reward coeff
@@ -82,12 +80,12 @@ class MAPursuitEnv:
         for obstacle in self.obstacles:
             multi_obs_info.append(obstacle._return_obs_info())
     
-    def _create_env(self, config, num_obstacle, num_hunter, num_target):
+    def _create_env(self, config, num_obstacle, num_hunter, num_target, verbose=True):
         self.num_obstacle = num_obstacle
         self.num_hunter = num_hunter
         self.num_target = num_target
-
-        print(f"Generate MA-Pursive Env: {self.num_obstacle} Obs, {self.num_hunter} Hunters, {self.num_target} Targets")
+        if verbose:
+            print(f"Generate MA-Pursive Env: {self.num_obstacle} Obs, {self.num_hunter} Hunters, {self.num_target} Targets")
         # set of obstacles
         self.obstacles = []
         for _ in range(self.num_obstacle):
@@ -114,9 +112,9 @@ class MAPursuitEnv:
                             config.Target.max_vel, config.Target.max_acc, config.Env.time_step)
             self.targets.append(target)
 
-    def gen_env(self, config, num_obstacle, num_hunter, num_target, seed):
+    def gen_env(self, config, num_obstacle, num_hunter, num_target, seed, verbose=True):
         set_global_seeds(seed)
-        self._create_env(config, num_obstacle, num_hunter, num_target)
+        self._create_env(config, num_obstacle, num_hunter, num_target, verbose=verbose)
         return self.reset()
 
     def re_gen(self):
@@ -457,16 +455,13 @@ class MAPursuitEnv:
         return normalized_rewards
 
     # TODO: use simulator like airsim to render
-    def render(self, exp_name,  
+    def render(self, ax, exp_name,  
                pause=0.001, 
                traj=False,
-               ax=None, headless=False):
+               headless=False):
         """
         Visualize the environment.
         """
-        if ax is None:
-            ax = self.ax
-
         ax.clear()
         ax.set_xlim(0, self.map_size)
         ax.set_ylim(0, self.map_size)
@@ -495,9 +490,9 @@ class MAPursuitEnv:
                     ax.plot(trajectory[:, 0], trajectory[:, 1], trajectory[:, 2], 
                             color='red', alpha=0.6)
                     ax.scatter(trajectory[0, 0], trajectory[0, 1], trajectory[0, 2], 
-                              color='blue', marker='o', s=100, label='Start' if i == 0 else "")
+                              color='red', marker='o', s=5)
                     ax.scatter(trajectory[-1, 0], trajectory[-1, 1], trajectory[-1, 2], 
-                              color='red', marker='x', s=100, label='End' if i == 0 else "")
+                              color='red', marker='x', s=100)
 
         # Draw targets
         for i, target in enumerate(self.targets):
@@ -507,9 +502,9 @@ class MAPursuitEnv:
             if traj and target.history_pos:
                 trajectory = np.array(target.history_pos)
                 ax.plot(trajectory[:, 0], trajectory[:, 1], trajectory[:, 2], 
-                        color='green', alpha=0.6, label=f'Target {i}')
+                        color='green', alpha=0.6)
                 ax.scatter(trajectory[0, 0], trajectory[0, 1], trajectory[0, 2], 
-                            color='blue', marker='o', s=100)
+                            color='green', marker='o', s=5)
                 ax.scatter(trajectory[-1, 0], trajectory[-1, 1], trajectory[-1, 2], 
                             color='green', marker='x', s=100)
 
@@ -624,6 +619,8 @@ class AgentBase:
     def update_lidar(self):
         self.lasers = self.lidar.scan(self.position, self.map_size)
 
+    def in_obs(self):
+        return self.lidar.isInObs
 class Hunter(AgentBase):
     def __init__(self, lidar: Lidar, 
                  map_size, margin, init_height,

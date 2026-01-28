@@ -28,6 +28,8 @@ Train:
   ckp_save_interval: 10
   ckp_score_threshold: 300
 
+  test_env_num: 50
+
 Model:
   share: true
 

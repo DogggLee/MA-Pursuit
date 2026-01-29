@@ -21,7 +21,7 @@ Train:
   update_freq: 10
   update_iterations: 20
 
-  env_random: false
+  env_random: true
   env_progress_random: true
   env_progress_regen_episode: 100
 

@@ -45,7 +45,7 @@ def generate_exp_dirname(config):
     
     dirname = ','.join(ss)
 
-    return f"{timestamp}_{dirname}"
+    return f"{dirname}_{timestamp}"
 
 def vector_length(v):
     return math.hypot(v[0], v[1])

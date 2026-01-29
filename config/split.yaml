@@ -1,9 +1,9 @@
 Base:
   seed: 20
-  exp_name: "split_80d"
+  exp_name: "split_randomEnv_80d"
 
 Train:
-  num_episodes: 500
+  num_episodes: 1000
   max_steps: 150
 
   batch_size: 256

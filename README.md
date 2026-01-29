@@ -16,6 +16,7 @@ The project is modified to support following features:
   - [x] Random radius & height for obstacles
 * MARL
   - [x] All agents sharing the same policy model
+  - [x] Training / Validation on randomly generated environments
   - [ ] Expand Agent actions from 2D to 3D or more
   - [ ] Agents with more powerful sensors
 

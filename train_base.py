@@ -14,7 +14,7 @@ from tqdm import tqdm
 from src.MAPursuitEnv import MAPursuitEnv, set_global_seeds, generate_test_scenarios
 from src.MATD3 import MATD3Agent
 from src.replaybuffer import ReplayBuffer
-from src.utils import load_config, generate_exp_dirname, calc_dim
+from src.utils import load_config, generate_exp_dirname, calc_dim, format_np_float_list
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation  # 新增：用于GIF生成
@@ -42,7 +42,7 @@ parser.add_argument('--visualize_traj', action="store_true", default=True, help=
 def train_split(args, config):
     assert config.Env.num_hunters[0] == config.Env.num_hunters[1], "Hunters number should be the same"
     assert config.Env.num_targets[0] == config.Env.num_targets[1], "Targets number should be the same"
-    
+
     exp_dirname = generate_exp_dirname(config)
 
     exp_dir = Path(args.dump_root) / exp_dirname
@@ -120,7 +120,7 @@ def train_split(args, config):
     score_threshold = config.Train.ckp_score_threshold
     for episode in range(config.Train.num_episodes):
         print(f"Episode {episode}/{config.Train.num_episodes}")
-        episode_dir = exp_dir / f"{episode:03d}"
+        episode_dir = exp_dir / "episodes" / f"{episode:03d}"
         episode_dir.makedirs_p()
 
         if config.Train.env_random:
@@ -428,8 +428,9 @@ def train_share(args, config):
         print(f"Episode {episode}/{config.Train.num_episodes}, "
               f"Num Obstacle: {env.num_obstacle}, Num Hunter: {env.num_hunter}, Num Target: {env.num_target}, "
               f"Total Reward Hunters: {total_reward_hunters:.2f}, "
-              f"Total Reward Targets: {total_reward_targets:.2f}")
-
+              f"Total Reward Targets: {total_reward_targets:.2f}", 
+              f"Avg Eval Reward Hunters: {avg_eval_reward:.2f}")
+        
         # 保存GIF
         # if args.render:
         #     fps = 10
@@ -574,11 +575,10 @@ def val_split(args, env: MAPursuitEnv,
     plt.close(fig)
 
     avg_test_reward = total_test_reward / len(test_env_cfgs)
-    print(f"Validation: Avg {avg_test_reward}: ", env_reward_list)
+    print(f"Validation: Avg {avg_test_reward}: ", format_np_float_list(env_reward_list))
 
     return avg_test_reward
  
-
 def val_share(args, env: MAPursuitEnv, 
               hunter_share: MATD3Agent, target_share: MATD3Agent, 
               test_env_cfgs, 
@@ -676,7 +676,8 @@ def val_share(args, env: MAPursuitEnv,
     plt.close(fig)
 
     avg_test_reward = total_test_reward / len(test_env_cfgs)
-    print(f"Validation: Avg {avg_test_reward}: ", env_reward_list)
+    
+    print(f"Validation: Avg {avg_test_reward}: ", format_np_float_list(env_reward_list))
 
     return avg_test_reward
  

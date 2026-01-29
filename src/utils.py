@@ -172,3 +172,16 @@ def isRounded(target_pos, multi_hunter_pos, sense_radius, success_threshold, max
             return True
         else:
             return False
+
+def format_np_float_list(np_float_list, decimal_places=3):
+    """
+    格式化打印包含numpy.float的列表，消除冗余类型标识并控制小数位数
+    :param np_float_list: 存储numpy.float类型的原始列表
+    :param decimal_places: 要保留的小数位数（非负整数）
+    """
+    if not isinstance(decimal_places, int) or decimal_places < 0:
+        raise ValueError("小数位数必须是非负整数，请传入有效的整数值")
+    
+    formatted_items = [f"{num:.{decimal_places}f}" for num in np_float_list]
+    
+    return formatted_items

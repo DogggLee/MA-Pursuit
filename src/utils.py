@@ -5,9 +5,21 @@ from datetime import datetime
 from easydict import EasyDict as edict
 
 def load_config(path):
+    def process_default(config: edict):
+        config.Train.lr = float(data.Train.lr)
+
+        if not isinstance(config.Env.num_obstacles, (list, tuple)):
+            config.Env.num_obstacles = [config.Env.num_obstacles, config.Env.num_obstacles]
+        if not isinstance(config.Env.num_hunters, (list, tuple)):
+            config.Env.num_hunters = [config.Env.num_hunters, config.Env.num_hunters]
+        if not isinstance(config.Env.num_targets, (list, tuple)):
+            config.Env.num_targets = [config.Env.num_targets, config.Env.num_targets]
+
+        return config
+    
     data = yaml.safe_load(open(path, "r"))
     data = edict(data)
-    data.Train.lr = float(data.Train.lr)
+    data = process_default(data)
     return data
 
 def calc_dim(config):

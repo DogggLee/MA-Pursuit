@@ -1,6 +1,6 @@
 Base:
   seed: 20
-  exp_name: "base_exp"
+  exp_name: "split_80d"
 
 Train:
   num_episodes: 500
@@ -21,10 +21,18 @@ Train:
   update_freq: 10
   update_iterations: 20
 
+  env_random: false
+  env_progress_random: true
+  env_progress_regen_episode: 100
+
   ckp_save_interval: 10
   ckp_score_threshold: 300
 
+  test_env_num: 10
+
 Model:
+  share: false
+
   hunter_lrdecay: false
   hunter_orthogonalize: false
 
@@ -40,10 +48,10 @@ Reward:
 Env:
   time_step: 0.5  
   # 任务参数
-  map_size: 300       # m
-  num_obstacle: [2, 10]
-  num_hunters: [3, 6]
-  num_targets: [1, 3]
+  map_size: 500       # m
+  num_obstacles: [5, 5]
+  num_hunters: [8, 8]
+  num_targets: [3, 3]
 
   # 随机生成参数
   obstacle_margin: 0.1  # [0 ~ 0.5)
@@ -63,36 +71,29 @@ Env:
 Hunter:
   # 运动性能配置
   action_dim: 2
-  max_acc: 3.0      # m/s^2
-  max_vel: 10.0       # m/s
+  max_acc: 5.0      # m/s^2
+  max_vel: 20.0       # m/s
 
   # 探测性能配置
-  lidar_beams: 16
-  max_lidar_dist: 100
+  lidar_beams: 32
+  max_lidar_dist: 80
   
   # 协作性能配置
   # Hunter 最大相互通信距离， -1表示无限  
   max_comm_radius: 100 # m
   # Hunter 最多考虑的队友数量
   max_comm_num: 2
-  # Neighbor pos * N_neighbor + ego-pos + ego-velo + target-pos + dist + N_beam
-  # 3 * K + 3 + 3 + 3 + 1 + 16
-  hunter_actor_dim: 32 
 
 Target:
   
   # 运动性能配置
   action_dim: 2
-  max_acc: 3.0      # m/s^2
-  max_vel: 10.0       # m/s
+  max_acc: 5.0      # m/s^2
+  max_vel: 20.0       # m/s
 
   # 探测性能配置
-  lidar_beams: 16
-  max_lidar_dist: 100
+  lidar_beams: 32
+  max_lidar_dist: 80
 
   # 对抗性能配置，同时考虑3个Hunter的位置
   max_hunter_num: 3
-  # Hunter_pos * N_near_H + ego-pos + ego-velo + N_beams
-  # 3 * K2 + 3 + 3 + 16
-  target_actor_dim: 31
-

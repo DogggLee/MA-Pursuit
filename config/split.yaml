@@ -1,10 +1,10 @@
 Base:
   seed: 20
-  exp_name: "share_val10"
+  exp_name: "split_80d"
 
 Train:
-  num_episodes: 2000
-  max_steps: 200
+  num_episodes: 500
+  max_steps: 150
 
   batch_size: 256
   lr: 5e-4
@@ -21,17 +21,17 @@ Train:
   update_freq: 10
   update_iterations: 20
 
-  env_random: true
+  env_random: false
   env_progress_random: true
   env_progress_regen_episode: 100
 
   ckp_save_interval: 10
-  ckp_score_threshold: 150
+  ckp_score_threshold: 300
 
   test_env_num: 10
 
 Model:
-  share: true
+  share: false
 
   hunter_lrdecay: false
   hunter_orthogonalize: false
@@ -49,9 +49,9 @@ Env:
   time_step: 0.5  
   # 任务参数
   map_size: 500       # m
-  num_obstacles: [10, 20]
-  num_hunters: [4, 8]
-  num_targets: [2, 6]
+  num_obstacles: [5, 20]
+  num_hunters: [8, 8]
+  num_targets: [3, 3]
 
   # 随机生成参数
   obstacle_margin: 0.1  # [0 ~ 0.5)
@@ -76,7 +76,7 @@ Hunter:
 
   # 探测性能配置
   lidar_beams: 32
-  max_lidar_dist: 50
+  max_lidar_dist: 80
   
   # 协作性能配置
   # Hunter 最大相互通信距离， -1表示无限  
@@ -93,8 +93,7 @@ Target:
 
   # 探测性能配置
   lidar_beams: 32
-  max_lidar_dist: 50
+  max_lidar_dist: 80
 
   # 对抗性能配置，同时考虑3个Hunter的位置
   max_hunter_num: 3
-

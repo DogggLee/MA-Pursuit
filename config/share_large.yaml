@@ -1,10 +1,10 @@
 Base:
   seed: 20
-  exp_name: "share_val10"
+  exp_name: "share_val10_large"
 
 Train:
-  num_episodes: 2000
-  max_steps: 200
+  num_episodes: 3000
+  max_steps: 256
 
   batch_size: 256
   lr: 5e-4
@@ -48,7 +48,7 @@ Reward:
 Env:
   time_step: 0.5  
   # 任务参数
-  map_size: 500       # m
+  map_size: 2000       # m
   num_obstacles: [10, 20]
   num_hunters: [4, 8]
   num_targets: [2, 6]
@@ -58,25 +58,25 @@ Env:
   hunter_margin: 0.2    # [0 ~ 0.5)
   target_margin: 0.2    # [0 ~ 0.5)
 
-  obstacle_radius_range: [5, 20]
+  obstacle_radius_range: [15, 30]
   obstacle_height_range: [3, 30]
   obstacle_speed: 0.0
   hunter_init_height: 10
   target_init_height: 10
 
-  collision_dist: 10  # m
-  escape_dist: 30
+  collision_dist: 20  # m
+  escape_dist: 50
   escape_angle: 30
 
 Hunter:
   # 运动性能配置
   action_dim: 2
-  max_acc: 5.0      # m/s^2
-  max_vel: 20.0       # m/s
+  max_acc: 10.0      # m/s^2
+  max_vel: 30.0       # m/s
 
   # 探测性能配置
   lidar_beams: 32
-  max_lidar_dist: 50
+  max_lidar_dist: 100
   
   # 协作性能配置
   # Hunter 最大相互通信距离， -1表示无限  
@@ -88,12 +88,12 @@ Target:
   
   # 运动性能配置
   action_dim: 2
-  max_acc: 5.0      # m/s^2
-  max_vel: 20.0       # m/s
+  max_acc: 10.0      # m/s^2
+  max_vel: 30.0       # m/s
 
   # 探测性能配置
   lidar_beams: 32
-  max_lidar_dist: 50
+  max_lidar_dist: 100
 
   # 对抗性能配置，同时考虑3个Hunter的位置
   max_hunter_num: 3

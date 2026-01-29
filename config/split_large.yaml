@@ -1,6 +1,6 @@
 Base:
   seed: 20
-  exp_name: "share_val10_large"
+  exp_name: "split_randomEnv_large_80d"
 
 Train:
   num_episodes: 3000
@@ -26,12 +26,12 @@ Train:
   env_progress_regen_episode: 100
 
   ckp_save_interval: 10
-  ckp_score_threshold: 150
+  ckp_score_threshold: 200
 
   test_env_num: 10
 
 Model:
-  share: true
+  share: false
 
   hunter_lrdecay: false
   hunter_orthogonalize: false
@@ -48,10 +48,10 @@ Reward:
 Env:
   time_step: 0.5  
   # 任务参数
-  map_size: 2000       # m
+  map_size: 200       # m
   num_obstacles: [10, 20]
-  num_hunters: [4, 8]
-  num_targets: [2, 6]
+  num_hunters: [8, 8]
+  num_targets: [3, 3]
 
   # 随机生成参数
   obstacle_margin: 0.1  # [0 ~ 0.5)
@@ -97,4 +97,3 @@ Target:
 
   # 对抗性能配置，同时考虑3个Hunter的位置
   max_hunter_num: 3
-

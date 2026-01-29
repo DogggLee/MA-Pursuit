@@ -209,12 +209,15 @@ def train_split(args, config):
         total_reward_hunters = episode_rewards_hunters.sum()
         total_reward_targets = episode_rewards_targets.sum()
 
-        avg_eval_reward = val_split(args, test_env, 
-                                    hunters,
-                                    targets,
-                                    test_env_cfgs, 
-                                    config, exp_dirname,
-                                    episode_dir)
+        if episode % 10 == 0:
+            avg_eval_reward = val_split(args, test_env, 
+                                        hunters,
+                                        targets,
+                                        test_env_cfgs, 
+                                        config, exp_dirname,
+                                        episode_dir)
+        else:
+            avg_eval_reward = -1
 
         print(f"Episode {episode}/{config.Train.num_episodes}, "
               f"Num Obstacle: {env.num_obstacle}, Num Hunter: {env.num_hunter}, Num Target: {env.num_target}, "
@@ -233,10 +236,10 @@ def train_split(args, config):
         if episode % config.Train.ckp_save_interval == 0 and episode > 0:
             should_save = True
             save_reason = f"ckp_{config.Train.ckp_save_interval}"
-        if total_reward_hunters > score_threshold:
-            score_threshold = total_reward_hunters
+        if avg_eval_reward > score_threshold:
+            score_threshold = avg_eval_reward
             should_save = True
-            save_reason = f"score_{total_reward_hunters:.0f}"
+            save_reason = f"score_{avg_eval_reward:.0f}"
         
         if should_save:
             save_dir = exp_model_dir / f"{save_reason}_episode{episode}"
@@ -445,12 +448,15 @@ def train_share(args, config):
         #     ani.finish()
             # plt.close(fig)
 
-        avg_eval_reward = val_share(args, test_env, 
-                                    hunter_share,
-                                    target_share,
-                                    test_env_cfgs, 
-                                    config, exp_dirname,
-                                    episode_dir)
+        if episode % 10 == 0:
+            avg_eval_reward = val_share(args, test_env, 
+                                        hunter_share,
+                                        target_share,
+                                        test_env_cfgs, 
+                                        config, exp_dirname,
+                                        episode_dir)
+        else:
+            avg_eval_reward = -1
 
         with open(rewards_csv_path, mode='a', newline='') as csv_file:
             writer = csv.writer(csv_file)
@@ -575,7 +581,7 @@ def val_split(args, env: MAPursuitEnv,
     plt.close(fig)
 
     avg_test_reward = total_test_reward / len(test_env_cfgs)
-    print(f"Validation: Avg {avg_test_reward}: ", format_np_float_list(env_reward_list))
+    print(f"Validation: Avg {avg_test_reward:.2f}: ", format_np_float_list(env_reward_list))
 
     return avg_test_reward
  
@@ -677,9 +683,11 @@ def val_share(args, env: MAPursuitEnv,
 
     avg_test_reward = total_test_reward / len(test_env_cfgs)
     
-    print(f"Validation: Avg {avg_test_reward}: ", format_np_float_list(env_reward_list))
+    print(f"Validation: Avg {avg_test_reward:.2f}: ", format_np_float_list(env_reward_list))
 
     return avg_test_reward
+ 
+
  
 if __name__ == '__main__':
     args = parser.parse_args()

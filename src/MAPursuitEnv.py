@@ -477,10 +477,18 @@ class MAPursuitEnv:
 
         # Draw hunters
         label = True
+        hunter_color = 'red'
+        target_color = 'green'
+
         for i, hunter in enumerate(self.hunters):
             x, y, z = hunter.position
-            ax.scatter(x, y, z, color='red', label='Hunter' if hunter == self.hunters[0] else "")
-            if self.visualize_lasers:
+            valid = not hunter.in_obs()
+            
+            ls = '-' if valid else '--'
+
+            ax.scatter(x, y, z, color=hunter_color, label='Hunter' if hunter == self.hunters[0] else "")
+
+            if self.visualize_lasers and valid:
                 # Draw lasers
                 hunter.lidar.visualize_lasers(hunter.position,ax, label=label, fill=True)
                 label = False
@@ -488,25 +496,29 @@ class MAPursuitEnv:
             if traj and hunter.history_pos:
                     trajectory = np.array(hunter.history_pos)
                     ax.plot(trajectory[:, 0], trajectory[:, 1], trajectory[:, 2], 
-                            color='red', alpha=0.6)
+                            color=hunter_color, alpha=0.6, ls=ls)
                     ax.scatter(trajectory[0, 0], trajectory[0, 1], trajectory[0, 2], 
-                              color='red', marker='o', s=5)
+                              color=hunter_color, marker='o', s=5)
                     ax.scatter(trajectory[-1, 0], trajectory[-1, 1], trajectory[-1, 2], 
-                              color='red', marker='x', s=100)
+                              color=hunter_color, marker='x', s=100)
 
         # Draw targets
         for i, target in enumerate(self.targets):
             x, y, z = target.position
-            ax.scatter(x, y, z, color='green', label='Target' if target == self.targets[0] else "")
+
+            valid = not hunter.in_obs()
+            ls = '-' if valid else '--'
+
+            ax.scatter(x, y, z, color=target_color, label='Target' if target == self.targets[0] else "")
 
             if traj and target.history_pos:
                 trajectory = np.array(target.history_pos)
                 ax.plot(trajectory[:, 0], trajectory[:, 1], trajectory[:, 2], 
-                        color='green', alpha=0.6)
+                        color=target_color, alpha=0.6, ls=ls)
                 ax.scatter(trajectory[0, 0], trajectory[0, 1], trajectory[0, 2], 
-                            color='green', marker='o', s=5)
+                            color=target_color, marker='o', s=5)
                 ax.scatter(trajectory[-1, 0], trajectory[-1, 1], trajectory[-1, 2], 
-                            color='green', marker='x', s=100)
+                            color=target_color, marker='x', s=100)
 
         ax.legend(loc='upper right')
         if not headless:

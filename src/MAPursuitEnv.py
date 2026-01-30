@@ -59,6 +59,7 @@ class MAPursuitEnv:
         
         self.escape_distance = config.Env.escape_dist # escape distance threshold for target
         self.max_escape_angle = config.Env.escape_angle # max escape angle for target (degree)
+        self.hunter_effect_range = config.Env.hunter_effect_range
 
         self.distance_threshold = config.Env.collision_dist # distance threshold for collision
         
@@ -70,10 +71,17 @@ class MAPursuitEnv:
         self.visualize_lasers = visualize_lasers
     
         # reward relevant
-        self.capture_reward = config.Reward.capture_reward_w        # roundup success reward
+        ## Sparse Reward
+        self.capture_reward = config.Reward.capture_reward        # roundup success reward
         self.chase_reward_coeff = config.Reward.chase_reward_w    # chase reward coeff
         self.escape_reward_coeff = config.Reward.escape_reward_w   # escape reward coeff
         self.safe_penalty_coeff = config.Reward.safe_penalty_w    # safe penalty coeff
+        self.step_penalty_coeff = config.Reward_step_penalty_w
+
+        ## Dense Reward
+        self.escape_interval_shrink_reward_coeff = config.Reward.escape_shrink_reward_w
+        self.max_escape_interval = 360.0
+        self.target_last_escape_interval = {}
     
     def _collect_obs_info(self):
         multi_obs_info = []
@@ -145,6 +153,8 @@ class MAPursuitEnv:
             hunter.reset()
         for target in self.targets:
             target.reset()
+        
+        self.target_last_escape_interval = {}
 
         # Assign initial targets to hunters
         self._assign_targets_to_hunters()
@@ -341,12 +351,35 @@ class MAPursuitEnv:
 
         # Map each target to its assigned hunters
         target_hunter_groups = {}
-        for target in self.targets:
+        for target_id, target in enumerate(self.targets):
             target_hunter_groups[target] = [hunter for hunter in self.hunters if hunter.assigned_target == target]
+            if target not in self.target_last_escape_interval:
+                self.target_last_escape_interval[target] = self.max_escape_interval
 
         # Reward for hunters chasing and capturing targets
         for target, hunters in target_hunter_groups.items():
             # calculate chasing reward and ifrounded reward
+            current_escape_interval = self.max_escape_interval
+
+            # 计算当前围捕任务情况，获取最大逃脱区间方向与角度宽度
+            if len(hunters) > 0:
+                multi_hunters_pos = [h.position for h in hunters]
+                is_captured, escape_interval_inds, escape_interval = utils.isRounded(tuple(target.position[:2]), [tuple(row[:2]) for row in multi_hunters_pos], hunter.lidar.max_detect_d, self.max_escape_angle, self.hunter_effect_range)
+
+                current_escape_interval = escape_interval
+                current_escape_interval = np.clip(current_escape_interval, 0.0, self.max_escape_interval)
+            else:
+                current_escape_interval = self.max_escape_interval
+
+            # 对于Hunter来说，当escape_interval缩小时可以获得奖励
+            escape_interval_shrink_reward = 0.0
+            last_escape_interval = self.target_last_escape_interval[target]
+            escape_interval_diff = last_escape_interval - current_escape_interval
+
+            if abs(escape_interval_diff) > 1e-6:
+                escape_interval_diff_norm = escape_interval_diff / self.max_escape_interval
+                escape_interval_shrink_reward = self.escape_interval_shrink_reward_coeff * escape_interval_diff_norm
+            
             for hunter in hunters:
                 hunter_dir = hunter.velocity[:2]
                 if np.linalg.norm(hunter_dir) == 0:
@@ -362,13 +395,14 @@ class MAPursuitEnv:
                 hunter_index = self.hunters.index(hunter)
                 rewards[hunter_index] += self.chase_reward_coeff * chase_reward
 
-            multi_hunters_pos = [h.position for h in hunters]
-            if utils.isRounded(tuple(target.position[:2]), [tuple(row[:2]) for row in multi_hunters_pos], hunter.lidar.max_detect_d, self.max_escape_angle):
+            
+            if is_captured:
                 for hunter in hunters:
                     hunter_index = self.hunters.index(hunter)
                     rewards[hunter_index] += self.capture_reward
                 target_index = self.targets.index(target)
                 dones[self.num_hunter + target_index] = True  # to mark target as done
+            
 
         # Reward for targets
         for target in self.targets:

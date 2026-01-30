@@ -40,10 +40,18 @@ Model:
   target_orthogonalize: false
 
 Reward: 
-  capture_reward_w: 2.0
+  # 成功捕获目标后获取到的reward
+  capture_reward: 2.0
+
+  # 追捕过程reward
   chase_reward_w: 0.8
   escape_reward_w: 0.4
+  
+  # 安全性reward
   safe_penalty_w: 0.7
+
+  # 步长惩罚
+  step_penalty_w: 0.01
 
 Env:
   time_step: 0.5  
@@ -66,7 +74,8 @@ Env:
 
   collision_dist: 10  # m
   escape_dist: 30
-  escape_angle: 30
+  escape_angle: 60
+  hunter_effect_range: 150
 
 Hunter:
   # 运动性能配置

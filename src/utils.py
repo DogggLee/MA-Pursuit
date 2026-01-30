@@ -124,15 +124,25 @@ def compute_histogram(target_pos, multi_hunter_pos, distance, max_range=200):
 
 def find_largest_clear_band(histogram, angles, max_range):
     """ 寻找最大逃生缺口
+
+    Args:
+        histogram (_type_): VHF, 围绕target_pos的360量化为32个bin, 每个bin中，与周围hunter+左右延伸区域的最小距离分布
+        angles (_type_): _description_
+        max_range (_type_): _description_
+
+    Returns:
+        _type_: _description_
     """
     num_bins = len(histogram)
     angle_step = angles[1] - angles[0]
     
+    # 寻找未被有效覆盖的bin
     clear_indices = [i for i in range(num_bins) if abs(histogram[i] - max_range) < 1e-6]
     
     if not clear_indices:
         return None
     
+    # 合并空白bin区间
     clear_intervals = []
     start = clear_indices[0]
     for i in range(1, len(clear_indices)):
@@ -142,6 +152,7 @@ def find_largest_clear_band(histogram, angles, max_range):
             start = clear_indices[i]
     clear_intervals.append((angles[start], angles[clear_indices[-1]]))
     
+    # 处理环形区域
     if angles[clear_indices[0]] == 0 and angles[clear_indices[-1]] == 2 * math.pi - angle_step:
         _, first_end = clear_intervals[0]
         last_start, _ = clear_intervals[-1]
@@ -149,6 +160,7 @@ def find_largest_clear_band(histogram, angles, max_range):
         merged_end = first_end + 2 * math.pi
         clear_intervals.append((last_start, merged_end))
     
+    # 找到最大空白区间
     largest_interval = None
     largest_size = -1
     for interval in clear_intervals:
@@ -173,20 +185,20 @@ def isRounded(target_pos, multi_hunter_pos, sense_radius, success_threshold, max
         multi_hunter_pos: [(x1,y1),(x2,y2),...,(xn,yn)]
         sense_radius: sense radius of hunters
         success_threshold: max escape angle in degrees
-        max_range: maximum sensing range
+        max_range: valid pursuit range
     '''
     histogram = compute_histogram(target_pos, multi_hunter_pos, sense_radius * 2, max_range)
     angles = np.arange(0, 2 * math.pi, math.pi / 16)
     largest_escape_interval = find_largest_clear_band(histogram, angles, max_range)
     if largest_escape_interval is None:
-        return True
+        return True, largest_escape_interval, 0.0
     else:
         start_angle, end_angle = largest_escape_interval
         interval_size = end_angle - start_angle
         if interval_size < success_threshold:
-            return True
+            return True, largest_escape_interval, interval_size
         else:
-            return False
+            return False, largest_escape_interval, interval_size
 
 def format_np_float_list(np_float_list, decimal_places=3):
     """

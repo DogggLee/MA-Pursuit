@@ -79,9 +79,22 @@ def ray_segment_intersection(ray_origin, ray_dir, seg_start, seg_end):
             return (x, y)
     return None
 
-def compute_histogram(target_pos, multi_hunter_pos, distance, max_range=0.2):
+def compute_histogram(target_pos, multi_hunter_pos, distance, max_range=200):
     '''
+    distance: hunter被探测到的线段长度(将hunter视作是一个左右延伸的板子)
+    max_range: hunter对于围捕有贡献的最小距离
+
     Just like VFH (Vector Field Histogram)
+    以target_pos为圆心, 周边360度划分为32个bin, 统计其中hunter的分布直方图
+
+    探测hunter是否处于某个bin中:
+        1. 生成一个ray_dir, 表示探测射线
+        2. 由于射线不一定正好与hunter_pos重合，因此生成一个小的线段(线段长度默认为Hunter的Lidar长度*2)
+            该线段与target --> hunter 的方向垂直，中点为hunter
+        3. 计算从target_pos出发的探测射线，与该线段是否存在交点
+        4. 计算交点与target_pos之间的距离，该距离要< max_range，才视作对围捕有贡献
+
+
     '''
     tx, ty = target_pos
     angles = np.arange(0, 2 * math.pi, math.pi / 16)  # 32角度
@@ -109,7 +122,9 @@ def compute_histogram(target_pos, multi_hunter_pos, distance, max_range=0.2):
 
     return histogram
 
-def find_largest_clear_band(histogram, angles, max_range=20):
+def find_largest_clear_band(histogram, angles, max_range):
+    """ 寻找最大逃生缺口
+    """
     num_bins = len(histogram)
     angle_step = angles[1] - angles[0]
     
@@ -150,7 +165,7 @@ def find_largest_clear_band(histogram, angles, max_range=20):
     
     return largest_interval
 
-def isRounded(target_pos, multi_hunter_pos, sense_radius, success_threshold, max_range=0.2):
+def isRounded(target_pos, multi_hunter_pos, sense_radius, success_threshold, max_range):
     '''
     Check if the target is rounded by hunters.
     Args:

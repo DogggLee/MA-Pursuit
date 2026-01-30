@@ -100,6 +100,8 @@ class MATD3Agent:
         return action
 
     def update(self, batch):
+        items = {}
+
         obs, actions, rewards, next_obs, dones = batch
 
         obs = torch.tensor(obs, dtype=torch.float32).to(self.device)
@@ -152,6 +154,11 @@ class MATD3Agent:
         self.soft_update(self.actor, self.actor_target, self.tau)
         self.soft_update(self.critic, self.critic_target, self.tau)
 
+        items['q1'] = current_q1.item()
+        items['q2'] = current_q2.item()
+        items['critic_loss'] = critic_loss.item()
+        items['actor_loss'] = actor_loss.item()
+        
     def soft_update(self, source, target, tau):
         for target_param, source_param in zip(target.parameters(), source.parameters()):
             target_param.data.copy_(tau * source_param.data + (1.0 - tau) * target_param.data)

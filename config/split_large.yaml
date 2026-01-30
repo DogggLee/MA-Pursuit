@@ -13,7 +13,7 @@ Train:
   noise_std: 0.005
   noise_clip: 0.01
 
-  lrdelay: false
+  lrdelay: true
 
   buffer_size: 10000
   min_buffer_size: 1024
@@ -48,7 +48,7 @@ Reward:
 Env:
   time_step: 0.5  
   # 任务参数
-  map_size: 200       # m
+  map_size: 2000       # m
   num_obstacles: [10, 20]
   num_hunters: [8, 8]
   num_targets: [3, 3]

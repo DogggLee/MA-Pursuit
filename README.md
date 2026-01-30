@@ -15,10 +15,24 @@ The project is modified to support following features:
   - [x] Random number of Obstacle/Hunter/Target
   - [x] Random radius & height for obstacles
 * MARL
-  - [x] All agents sharing the same policy model
+  - [ ] Unified framework for split/share policy model
+    - [x] All agents sharing the same policy model
+    - [ ] Load checkpoints for split/share training mode
+
   - [x] Training / Validation on randomly generated environments
+    - [ ] Calculate pursuit-rate, avg-step, collision-count for each episode
+    - [ ] Generating .gif while validation
+  
+  - [ ] Expand Agent Role
+    - [ ] Detector: Equip with long-range sensor, but moving slowly. Use to search target and updating target position within its perception field
+    - [ ] Chaser: Equip with light-weight sensor, but moving fast. Use to pursuit target following the guidance from Detector. 
   - [ ] Expand Agent actions from 2D to 3D or more
-  - [ ] Agents with more powerful sensors
+  - [ ] Tensorboard logging 
+    - [ ] Training Loss of Hunter/Target
+    - [ ] Rewards of Hunter/Target
+    - [ ] Pursuit-rate, avg-step, collision-count and score
+    - [ ] learning-rate
+  
 
 
 

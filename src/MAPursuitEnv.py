@@ -115,7 +115,6 @@ class MAPursuitEnv:
     def gen_env(self, config, num_obstacle, num_hunter, num_target, seed, verbose=True):
         set_global_seeds(seed)
         self._create_env(config, num_obstacle, num_hunter, num_target, verbose=verbose)
-        return self.reset()
 
     def re_gen(self):
         """
